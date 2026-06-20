@@ -1,0 +1,831 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleType {
+  FISCAL_GENERAL
+  FISCAL_ADJUNTO
+  FISCAL_DIVISION
+  FISCAL_SUPERIOR
+  FISCAL_JEFE
+  FISCAL
+  FISCAL_AUXILIAR
+  INVESTIGADOR_SENIOR
+  INVESTIGADOR_JUNIOR
+  PASANTE
+}
+
+enum Permission {
+  MANAGE_USERS
+  MANAGE_ROLES
+  MANAGE_SANCTIONS
+  CREATE_INVESTIGATION
+  VIEW_ALL_INVESTIGATIONS
+  VIEW_ASSIGNED_INVESTIGATIONS
+  EDIT_INVESTIGATION
+  DELETE_INVESTIGATION
+  SHARE_INVESTIGATION
+  MANAGE_SUBJECTS
+  VIEW_SUBJECTS
+  ADD_NOTES
+  VIEW_NOTES
+  MANAGE_ZONES
+  UPLOAD_FILES
+  MANAGE_WARRANTS
+  VIEW_AUDIT_LOG
+  SYSTEM_CONFIG
+}
+
+enum InvestigationStatus {
+  OPEN
+  ACTIVE
+  SUSPENDED
+  CLOSED_SUCCESSFUL
+  CLOSED_DISMISSED
+}
+
+enum InvestigationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum InvestigationType {
+  CRIMINAL
+  FINANCIAL
+  CORRUPTION
+  ORGANIZED_CRIME
+  NARCOTICS
+  WEAPONS
+  CIVIL
+  MIXED
+}
+
+enum AccessLevel {
+  READ
+  WRITE
+  ADMIN
+}
+
+enum DangerLevel {
+  LOW
+  MEDIUM
+  HIGH
+  EXTREME
+}
+
+enum SubjectStatus {
+  FREE
+  WANTED
+  UNDER_SURVEILLANCE
+  ARRESTED
+  INDICTED
+  CONVICTED
+}
+
+enum PropertyType {
+  RESIDENCE
+  BUSINESS
+  WAREHOUSE
+  HIDEOUT
+  UNKNOWN
+}
+
+enum RelationshipType {
+  ASSOCIATE
+  FAMILY
+  EMPLOYER
+  EMPLOYEE
+  ACCOMPLICE
+  RIVAL
+  UNKNOWN
+}
+
+enum WarrantType {
+  ALLANAMIENTO
+  DETENCION
+  INTERCEPCION
+  INCAUTACION
+}
+
+enum WarrantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+  EXPIRED
+}
+
+enum SanctionType {
+  REPRIMAND
+  WARNING
+  SUSPENSION
+  DEMOTION
+  DISMISSAL
+}
+
+enum DocumentType {
+  RESOLUTION
+  SUMMONS
+  REPORT
+  OFFICIAL_LETTER
+  INDICTMENT
+  DECREE
+  INTERNAL_MEMO
+}
+
+enum DocumentStatus {
+  DRAFT
+  ISSUED
+  SIGNED
+  ARCHIVED
+}
+
+enum MapDrawingType {
+  POLYGON
+  POLYLINE
+  CIRCLE
+  MARKER
+}
+
+enum OrgType {
+  GANG
+  CARTEL
+  MAFIA
+  BIKER
+  CORPORATE
+  OTHER
+}
+
+enum MapElementType {
+  POINT
+  CIRCLE
+  POLYGON
+  POLYLINE
+}
+
+enum WarrantResult {
+  POSITIVE
+  NEGATIVE
+  PARTIAL
+}
+
+enum NotificationType {
+  INVESTIGATION_ASSIGNED
+  INVESTIGATION_UPDATED
+  DOCUMENT_SIGNED
+  DOCUMENT_TO_SIGN
+  WARRANT_APPROVED
+  WARRANT_REJECTED
+  SANCTION_ISSUED
+  MENTION
+  NOTE_ADDED
+}
+
+enum PropertyIncidentType {
+  RAID
+  SEIZURE
+  SURVEILLANCE
+  SIGHTING
+  INTERVENTION
+  INSPECTION
+  OTHER
+}
+
+enum IncidentResult {
+  POSITIVE
+  NEGATIVE
+  PARTIAL
+  PENDING
+}
+
+enum IncidentOrigin {
+  MANUAL
+  WARRANT
+}
+
+model User {
+  id                    String                     @id @default(cuid())
+  username              String                     @unique
+  displayName           String
+  password              String
+  email                 String?                    @unique
+  avatar                String?
+  badgeNumber           String?                    @unique
+  division              String?
+  bio                   String?
+  active                Boolean                    @default(true)
+  role                  RoleType                   @default(PASANTE)
+  lastLoginAt           DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  sanctions             Sanction[]
+  issuedSanctions       Sanction[]                 @relation("IssuedBy")
+  documentsAuthored     Document[]                 @relation("DocAuthor")
+  documentsSigned       Document[]                 @relation("DocSigner")
+  investigationsLed     Investigation[]            @relation("LeadFiscal")
+  investigationAccess   InvestigationParticipant[]
+  notesAuthored         Note[]                     @relation("NoteAuthor")
+  notesAbout            Note[]                     @relation("NoteTarget")
+  requestedWarrants     Warrant[]                  @relation("WarrantRequestedBy")
+  approvedWarrants      Warrant[]                  @relation("WarrantApprovedBy")
+  messages              Message[]
+  auditLogs             AuditLog[]
+  uploadedFiles         File[]
+  mapDrawings           MapDrawing[]
+  mapElements           MapElement[]
+  organizationsCreated  CriminalOrganization[]
+  warrantReports        WarrantReport[]            @relation("WarrantReportCreatedBy")
+  createdProperties     Property[]                  @relation("PropertyCreatedBy")
+  propertyIncidents     PropertyIncident[]          @relation("PropertyIncidentCreatedBy")
+  propertyMemberships   PropertyMember[]            @relation("PropertyMemberUser")
+  propertyMembersAdded  PropertyMember[]            @relation("PropertyMemberAddedBy")
+  notificationsReceived Notification[]             @relation("NotifRecipient")
+  notificationsActed    Notification[]             @relation("NotifActor")
+
+  @@index([role])
+  @@index([active])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  recipient   User             @relation("NotifRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?            @relation("NotifActor", fields: [actorId], references: [id])
+  type        NotificationType
+  title       String
+  message     String
+  link        String?
+  read        Boolean          @default(false)
+  meta        Json?
+  createdAt   DateTime         @default(now())
+
+  @@index([recipientId, read])
+  @@index([createdAt])
+}
+
+model Investigation {
+  id           String                     @id @default(cuid())
+  caseNumber   String                     @unique
+  title        String
+  description  String                     @db.Text
+  status       InvestigationStatus        @default(OPEN)
+  priority     InvestigationPriority      @default(MEDIUM)
+  type         InvestigationType
+  legalBasis   String?                    @db.Text
+  startDate    DateTime                   @default(now())
+  closeDate    DateTime?
+  leadFiscalId String
+  leadFiscal   User                       @relation("LeadFiscal", fields: [leadFiscalId], references: [id])
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  participants InvestigationParticipant[]
+  subjects     InvestigationSubject[]
+  notes        Note[]
+  files        File[]
+  warrants     Warrant[]
+  chatRoom     ChatRoom?
+  mapDrawings  MapDrawing[]
+  mapElements  MapElement[]
+  documents    Document[]
+  auditLogs    AuditLog[]
+  propertyIncidents PropertyIncident[]
+
+  @@index([status])
+  @@index([leadFiscalId])
+  @@index([type])
+  @@index([priority])
+}
+
+model InvestigationParticipant {
+  id              String        @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  accessLevel     AccessLevel   @default(READ)
+  addedAt         DateTime      @default(now())
+  addedById       String?
+
+  @@unique([investigationId, userId])
+  @@index([investigationId])
+  @@index([userId])
+  @@index([addedById])
+}
+
+model InvestigationSubject {
+  id              String        @id @default(cuid())
+  investigationId String
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  subjectId       String
+  subject         Subject       @relation(fields: [subjectId], references: [id])
+  role            String
+  notes           String?
+  addedAt         DateTime      @default(now())
+
+  @@unique([investigationId, subjectId])
+  @@index([investigationId])
+  @@index([subjectId])
+}
+
+model Subject {
+  id                   String                 @id @default(cuid())
+  firstName            String
+  lastName             String
+  alias                String?
+  dateOfBirth          DateTime?
+  nationality          String?
+  occupation           String?
+  phone                String?
+  address              String?
+  photo                String?
+  dangerLevel          DangerLevel            @default(LOW)
+  status               SubjectStatus          @default(FREE)
+  isOrganized          Boolean                @default(false)
+  organization         String?
+  organizationId       String?
+  criminalOrganization CriminalOrganization?  @relation(fields: [organizationId], references: [id])
+  createdById          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  vehicles             SubjectVehicle[]
+  properties           SubjectProperty[]
+  investigations       InvestigationSubject[]
+  relationships        SubjectRelationship[]  @relation("FromSubject")
+  relatedTo            SubjectRelationship[]  @relation("ToSubject")
+  zones                SubjectZone[]
+  notes                Note[]
+  files                File[]
+  documents            Document[]
+  mapElements          MapElementSubject[]
+
+  @@index([status])
+  @@index([lastName])
+  @@index([dangerLevel])
+  @@index([organization])
+  @@index([organizationId])
+  @@index([createdById])
+}
+
+model Vehicle {
+  id        String           @id @default(cuid())
+  plate     String           @unique
+  brand     String
+  model     String
+  color     String
+  year      Int?
+  notes     String?
+  subjects  SubjectVehicle[]
+  createdAt DateTime         @default(now())
+
+  @@index([plate])
+}
+
+model Property {
+  id          String            @id @default(cuid())
+  address     String
+  type        PropertyType
+  zone        String?
+  notes       String?
+  gtaX        Float?
+  gtaY        Float?
+  createdById String?
+  createdBy   User?             @relation("PropertyCreatedBy", fields: [createdById], references: [id])
+  subjects    SubjectProperty[]
+  mapElements MapElement[]
+  warrants    Warrant[]
+  incidents   PropertyIncident[]
+  members     PropertyMember[]
+  createdAt   DateTime          @default(now())
+
+  @@index([address])
+  @@index([type])
+  @@index([zone])
+  @@index([gtaX, gtaY])
+  @@index([createdById])
+}
+
+model PropertyIncident {
+  id                    String               @id @default(cuid())
+  propertyId            String
+  property              Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  sequence              Int
+  type                  PropertyIncidentType
+  title                 String
+  description           String               @db.Text
+  result                IncidentResult?
+  occurredAt            DateTime
+  origin                IncidentOrigin       @default(MANUAL)
+  warrantId             String?              @unique
+  warrant               Warrant?             @relation(fields: [warrantId], references: [id], onDelete: SetNull)
+  participatingAgencies String?              @db.Text
+  evidence              String?              @db.Text
+  personsPresent        String?              @db.Text
+  investigationId       String?
+  investigation         Investigation?       @relation(fields: [investigationId], references: [id], onDelete: SetNull)
+  createdById           String
+  createdBy             User                 @relation("PropertyIncidentCreatedBy", fields: [createdById], references: [id])
+  files                 File[]
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([propertyId, sequence])
+  @@index([type])
+  @@index([result])
+  @@index([origin])
+  @@index([investigationId])
+  @@index([createdById])
+  @@index([occurredAt])
+}
+
+model PropertyMember {
+  id          String      @id @default(cuid())
+  propertyId  String
+  property    Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User        @relation("PropertyMemberUser", fields: [userId], references: [id])
+  accessLevel AccessLevel @default(READ)
+  addedById   String?
+  addedBy     User?       @relation("PropertyMemberAddedBy", fields: [addedById], references: [id])
+  addedAt     DateTime    @default(now())
+
+  @@unique([propertyId, userId])
+  @@index([propertyId])
+  @@index([userId])
+  @@index([addedById])
+  @@index([accessLevel])
+}
+
+model SubjectVehicle {
+  id        String  @id @default(cuid())
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+  relation  String
+
+  @@unique([subjectId, vehicleId])
+  @@index([subjectId])
+  @@index([vehicleId])
+}
+
+model SubjectProperty {
+  id         String   @id @default(cuid())
+  subjectId  String
+  subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  relation   String
+
+  @@unique([subjectId, propertyId])
+  @@index([subjectId])
+  @@index([propertyId])
+}
+
+model SubjectRelationship {
+  id          String           @id @default(cuid())
+  fromId      String
+  from        Subject          @relation("FromSubject", fields: [fromId], references: [id], onDelete: Cascade)
+  toId        String
+  to          Subject          @relation("ToSubject", fields: [toId], references: [id], onDelete: Cascade)
+  type        RelationshipType
+  description String?
+  strength    Int              @default(1)
+
+  @@unique([fromId, toId])
+  @@index([fromId])
+  @@index([toId])
+  @@index([type])
+}
+
+model Zone {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  district    String
+  description String?
+  coordsJson  String?       @db.Text
+  subjects    SubjectZone[]
+
+  @@index([district])
+}
+
+model SubjectZone {
+  id         String    @id @default(cuid())
+  subjectId  String
+  subject    Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  zoneId     String
+  zone       Zone      @relation(fields: [zoneId], references: [id])
+  frequency  String?
+  lastSeenAt DateTime?
+
+  @@unique([subjectId, zoneId])
+  @@index([subjectId])
+  @@index([zoneId])
+}
+
+model Note {
+  id              String         @id @default(cuid())
+  content         String         @db.Text
+  authorId        String
+  author          User           @relation("NoteAuthor", fields: [authorId], references: [id])
+  isConfidential  Boolean        @default(false)
+  isPinned        Boolean        @default(false)
+  investigationId String?
+  investigation   Investigation? @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  subjectId       String?
+  subject         Subject?       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  targetUserId    String?
+  targetUser      User?          @relation("NoteTarget", fields: [targetUserId], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  files           File[]
+
+  @@index([authorId])
+  @@index([investigationId])
+  @@index([subjectId])
+  @@index([targetUserId])
+  @@index([isPinned])
+}
+
+model Warrant {
+  id              String         @id @default(cuid())
+  warrantNumber   String         @unique
+  type            WarrantType
+  title           String
+  description     String         @db.Text
+  location        String
+  justification   String         @db.Text
+  legalBasis      String         @db.Text
+  status          WarrantStatus  @default(PENDING)
+  investigationId String
+  investigation   Investigation  @relation(fields: [investigationId], references: [id])
+  propertyId      String?
+  property        Property?      @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  requestedById   String
+  requestedBy     User           @relation("WarrantRequestedBy", fields: [requestedById], references: [id])
+  approvedById    String?
+  approvedBy      User?          @relation("WarrantApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  rejectionReason String?
+  executedAt      DateTime?
+  executionNotes  String?        @db.Text
+  createdAt       DateTime       @default(now())
+  files           File[]
+  warrantReport   WarrantReport?
+  propertyIncident PropertyIncident?
+
+  @@index([status])
+  @@index([type])
+  @@index([investigationId])
+  @@index([propertyId])
+  @@index([requestedById])
+  @@index([approvedById])
+}
+
+model Sanction {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+  type          SanctionType
+  description   String       @db.Text
+  issuedById    String
+  issuedBy      User         @relation("IssuedBy", fields: [issuedById], references: [id])
+  severity      Int
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  resolvedAt    DateTime?
+  resolvedNotes String?
+
+  @@index([userId])
+  @@index([issuedById])
+  @@index([active])
+  @@index([type])
+}
+
+model Document {
+  id              String         @id @default(cuid())
+  documentNumber  String         @unique
+  type            String
+  title           String
+  formData        Json           @default("{}")
+  status          DocumentStatus @default(DRAFT)
+  investigationId String?
+  investigation   Investigation? @relation(fields: [investigationId], references: [id], onDelete: SetNull)
+  subjectId       String?
+  subject         Subject?       @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User           @relation("DocAuthor", fields: [createdById], references: [id])
+  authorRole      RoleType
+  signedById      String?
+  signedBy        User?          @relation("DocSigner", fields: [signedById], references: [id])
+  signedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([documentNumber])
+  @@index([type])
+  @@index([status])
+  @@index([investigationId])
+  @@index([subjectId])
+  @@index([createdById])
+  @@index([signedById])
+  @@index([createdAt])
+}
+
+model File {
+  id              String         @id @default(cuid())
+  filename        String
+  originalName    String
+  mimeType        String
+  size            Int
+  url             String
+  uploadedById    String
+  uploadedBy      User           @relation(fields: [uploadedById], references: [id])
+  investigationId String?
+  investigation   Investigation? @relation(fields: [investigationId], references: [id])
+  noteId          String?
+  note            Note?          @relation(fields: [noteId], references: [id])
+  warrantId       String?
+  warrant         Warrant?       @relation(fields: [warrantId], references: [id])
+  subjectId       String?
+  subject         Subject?       @relation(fields: [subjectId], references: [id])
+  messageId       String?        @unique
+  message         Message?       @relation(fields: [messageId], references: [id])
+  warrantReportId String?
+  warrantReport   WarrantReport? @relation(fields: [warrantReportId], references: [id])
+  propertyIncidentId String?
+  propertyIncident   PropertyIncident? @relation(fields: [propertyIncidentId], references: [id])
+  createdAt       DateTime       @default(now())
+
+  @@index([uploadedById])
+  @@index([investigationId])
+  @@index([noteId])
+  @@index([warrantId])
+  @@index([warrantReportId])
+  @@index([propertyIncidentId])
+  @@index([subjectId])
+}
+
+model MapDrawing {
+  id              String         @id @default(cuid())
+  investigationId String
+  investigation   Investigation  @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  type            MapDrawingType
+  label           String?
+  color           String         @default("#8b9db5")
+  geoJson         String         @db.Text
+  description     String?
+  createdById     String
+  createdBy       User           @relation(fields: [createdById], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([investigationId])
+  @@index([createdById])
+}
+
+model CriminalOrganization {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  alias       String?
+  color       String       @default("#dc2626")
+  description String?      @db.Text
+  type        OrgType      @default(GANG)
+  active      Boolean      @default(true)
+  createdById String
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  members     Subject[]
+  mapElements MapElement[]
+
+  @@index([type])
+  @@index([active])
+  @@index([createdById])
+}
+
+model MapElement {
+  id              String                @id @default(cuid())
+  investigationId String?
+  investigation   Investigation?        @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  legendNumber    Int
+  type            MapElementType
+  label           String
+  description     String?               @db.Text
+  color           String                @default("#dc2626")
+  geoJson         String                @db.Text
+  radius          Float?
+  organizationId  String?
+  organization    CriminalOrganization? @relation(fields: [organizationId], references: [id])
+  propertyId      String?
+  property        Property?             @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  linkedSubjects  MapElementSubject[]
+  createdById     String
+  createdBy       User                  @relation(fields: [createdById], references: [id])
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([investigationId])
+  @@index([organizationId])
+  @@index([propertyId])
+  @@index([createdById])
+}
+
+model MapElementSubject {
+  id           String     @id @default(cuid())
+  mapElementId String
+  mapElement   MapElement @relation(fields: [mapElementId], references: [id], onDelete: Cascade)
+  subjectId    String
+  subject      Subject    @relation(fields: [subjectId], references: [id])
+  role         String?
+
+  @@unique([mapElementId, subjectId])
+  @@index([subjectId])
+}
+
+model WarrantReport {
+  id                    String        @id @default(cuid())
+  warrantId             String        @unique
+  warrant               Warrant       @relation(fields: [warrantId], references: [id])
+  result                WarrantResult
+  raidSequence          Int?
+  findings              String        @db.Text
+  evidence              String?       @db.Text
+  persons               String?       @db.Text
+  participatingAgencies String?       @db.Text
+  notes                 String?       @db.Text
+  files                 File[]
+  createdById           String
+  createdBy             User          @relation("WarrantReportCreatedBy", fields: [createdById], references: [id])
+  createdAt             DateTime      @default(now())
+
+  @@index([createdById])
+  @@index([result])
+  @@index([raidSequence])
+}
+
+model ChatRoom {
+  id              String        @id @default(cuid())
+  investigationId String        @unique
+  investigation   Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  messages        Message[]
+  createdAt       DateTime      @default(now())
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  roomId    String
+  room      ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+  content   String    @db.Text
+  fileUrl   String?
+  fileId    String?
+  fileName  String?
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  file      File?
+
+  @@index([roomId])
+  @@index([authorId])
+  @@index([fileId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  action          String
+  entity          String
+  entityId        String?
+  meta            Json?
+  investigationId String?
+  investigation   Investigation? @relation(fields: [investigationId], references: [id])
+  ip              String?
+  userAgent       String?
+  createdAt       DateTime       @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+  @@index([investigationId])
+}
+
+model RolePermission {
+  id         String     @id @default(cuid())
+  role       RoleType
+  permission Permission
+
+  @@unique([role, permission])
+  @@index([role])
+  @@index([permission])
+}

@@ -1,0 +1,22 @@
+node_modules
+dist
+dist*/
+.env
+.env.local
+.DS_Store
+coverage
+*.log
+docker/ssl
+
+# Archivos de ejecucion y temporales (no forman parte del proyecto)
+*.err.log
+*.pid
+.api-server.pid
+.codex-*
+.*-server.pid
+*.tmp
+*.temp
+.cache/
+_ref/
+*.tsbuildinfo
+.claude/

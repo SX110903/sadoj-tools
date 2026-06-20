@@ -1,0 +1,16 @@
+{
+  "name": "sadoj-fiscalia",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "build": "pnpm --filter @sadoj/shared build && pnpm --filter @sadoj/api build && pnpm --filter @sadoj/web build",
+    "typecheck": "pnpm -r typecheck",
+    "dev:api": "pnpm --filter @sadoj/api dev",
+    "dev:web": "pnpm --filter @sadoj/web dev",
+    "prisma:generate": "pnpm --filter @sadoj/api prisma generate",
+    "prisma:migrate": "pnpm --filter @sadoj/api prisma migrate dev",
+    "seed": "pnpm --filter @sadoj/api prisma db seed"
+  }
+}
+
