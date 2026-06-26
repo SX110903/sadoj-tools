@@ -93,7 +93,15 @@ export class UsersService {
     return users.map((user) => ({ ...user, role: user.role as RoleType }));
   }
 
-  public async findById(id: string): Promise<UserSafe> {
+  public async findById(id: string, requester: AuthenticatedUser): Promise<UserSafe> {
+    if (requester.id !== id && !hasPermission(requester.role, Permission.MANAGE_USERS)) {
+      throw new AppError(403, "FORBIDDEN", "No tienes permisos para ver este fiscal.");
+    }
+
+    return this.findExistingById(id);
+  }
+
+  private async findExistingById(id: string): Promise<UserSafe> {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (user === null) {
@@ -127,7 +135,7 @@ export class UsersService {
       throw new AppError(403, "FORBIDDEN", "No tienes permisos para editar este fiscal.");
     }
 
-    await this.findById(id);
+    await this.findExistingById(id);
 
     const updateData: Prisma.UserUpdateInput = {};
 
@@ -144,7 +152,7 @@ export class UsersService {
   }
 
   public async deactivate(id: string): Promise<UserSafe> {
-    await this.findById(id);
+    await this.findExistingById(id);
 
     const user = await this.prisma.user.update({
       where: { id },
@@ -155,7 +163,7 @@ export class UsersService {
   }
 
   public async changeRole(id: string, role: RoleType, requester: AuthenticatedUser): Promise<UserSafe> {
-    const target = await this.findById(id);
+    const target = await this.findExistingById(id);
 
     if (!isRoleAbove(requester.role, target.role) || !isRoleAbove(requester.role, role)) {
       throw new AppError(403, "ROLE_LEVEL_TOO_LOW", "No puedes asignar o modificar un rol igual o superior al tuyo.");
@@ -170,7 +178,7 @@ export class UsersService {
   }
 
   public async updateAvatar(id: string, avatarUrl: string): Promise<UserSafe> {
-    await this.findById(id);
+    await this.findExistingById(id);
 
     const user = await this.prisma.user.update({
       where: { id },

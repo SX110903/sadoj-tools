@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/auth-context";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { RoleType } from "../../types/sadoj";
 
@@ -31,7 +31,7 @@ export function RolesPage(): JSX.Element {
     void load();
   }, [accessToken]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (roles === null) return <SkeletonBlock height={420} />;
 
   return (

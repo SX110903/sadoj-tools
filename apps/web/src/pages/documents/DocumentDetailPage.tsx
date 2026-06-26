@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../auth/auth-context";
 import { DocumentTemplateRenderer } from "../../components/document/DocumentTemplateRenderer";
 import { StatusBadge } from "../../components/StatusBadge";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { DocumentType, FormData as DocumentFormData } from "../../types/documents";
 import type { DocumentStatus, OfficialDocument, RoleType } from "../../types/sadoj";
@@ -119,7 +119,7 @@ export function DocumentDetailPage(): JSX.Element {
   };
 
   if (id === undefined) return <EmptyState title="Documento no encontrado." />;
-  if (errorMessage !== null && document === null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null && document === null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void load()} />} />;
   if (document === null || formData === null) return <SkeletonBlock height={520} />;
 
   const userRole = user?.role as RoleType | undefined;

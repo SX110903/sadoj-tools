@@ -7,6 +7,7 @@ import type { GtaShape, MapStyle } from "gta-v-map";
 import { Circle, Hexagon, MapPin, Spline } from "lucide-react";
 import { useGtaMap } from "../../hooks/useGtaMap";
 import type { MapDrawing, MapElement, MapElementType, Property } from "../../types/sadoj";
+import { reportClientWarning } from "../../utils/clientDiagnostics";
 import { geoJsonPolygonToPoints, parseGeoJson } from "../../utils/mapCoords";
 
 const MAP_STYLES = [
@@ -199,7 +200,7 @@ function layerBounds(layer: L.Layer): L.LatLngBounds | null {
     if (hasBounds(layer)) return validBoundsOrNull(layer.getBounds());
     return null;
   } catch (error) {
-    console.warn("No se pudieron calcular los límites del elemento del mapa:", error);
+    reportClientWarning("No se pudieron calcular los límites del elemento del mapa.", error);
     return null;
   }
 }
@@ -313,7 +314,7 @@ function safeFocusMap(map: L.Map, target: ElementFocusTarget): void {
     }
   } catch (error) {
     if (!errorMessage(error).includes("Bounds are not valid")) {
-      console.warn("No se pudo centrar el mapa en el elemento:", error);
+      reportClientWarning("No se pudo centrar el mapa en el elemento.", error);
     }
   }
 

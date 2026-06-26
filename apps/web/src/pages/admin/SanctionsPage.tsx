@@ -6,7 +6,7 @@ import { useAuth } from "../../auth/auth-context";
 import { apiRequest, type PaginationMeta } from "../../services/api";
 import type { PersonRef, Sanction, SanctionType } from "../../types/sadoj";
 import { roleLabel, shortDateTime } from "../../utils/labels";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 
 const SANCTION_TYPES = ["REPRIMAND", "WARNING", "SUSPENSION", "DEMOTION", "DISMISSAL"] as const;
 const SEVERITY_VALUES = [1, 2, 3, 4, 5] as const;
@@ -47,8 +47,10 @@ export function SanctionsPage(): JSX.Element {
   const [userSearch, setUserSearch] = useState("");
   const [form, setForm] = useState<SanctionFormState>({ userId: initialUserId, type: "WARNING", severity: 1, description: "" });
   const [message, setMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async (): Promise<void> => {
+    setLoadError(null);
     const query = new URLSearchParams();
     if (filterUserId.length > 0) query.set("userId", filterUserId);
     if (filterType.length > 0) query.set("type", filterType);
@@ -62,9 +64,11 @@ export function SanctionsPage(): JSX.Element {
 
     if (sanctionsResult.error) {
       setMessage(sanctionsResult.message);
+      setLoadError(sanctionsResult.message);
     } else {
       setSanctions(sanctionsResult.data);
       setMeta(sanctionsResult.meta ?? null);
+      setLoadError(null);
     }
 
     if (!usersResult.error) setEligibleUsers(usersResult.data);
@@ -117,6 +121,10 @@ export function SanctionsPage(): JSX.Element {
       await load();
     }
   };
+
+  if (loadError !== null && sanctions === null) {
+    return <div className="page"><EmptyState title={loadError} action={<RetryButton onRetry={() => void load()} />} /></div>;
+  }
 
   if (sanctions === null) return <div className="page"><SkeletonBlock height={420} /></div>;
 

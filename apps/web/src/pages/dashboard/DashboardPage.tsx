@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/auth-context";
 import { StatusBadge } from "../../components/StatusBadge";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import { formatAuditAction, type AuditCategory } from "../../utils/auditFormat";
 import { roleLabel } from "../../utils/labels";
@@ -145,7 +145,7 @@ export function DashboardPage(): JSX.Element {
   }, [accessToken]);
 
   if (errorMessage !== null) {
-    return <EmptyState title={errorMessage} />;
+    return <EmptyState title={errorMessage} action={<RetryButton />} />;
   }
 
   if (payload === null) {

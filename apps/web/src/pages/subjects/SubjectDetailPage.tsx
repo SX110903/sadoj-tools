@@ -7,7 +7,7 @@ import { FileUploadPanel } from "../../components/files/FileUploadPanel";
 import { NotesPanel } from "../../components/notes/NotesPanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { TimelinePanel } from "../../components/timeline/TimelinePanel";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { Property, Subject, SubjectDetail, Warrant } from "../../types/sadoj";
 import { gtaToPreviewPercent } from "../../utils/mapCoords";
@@ -68,7 +68,7 @@ export function SubjectDetailPage(): JSX.Element {
     void loadSubject();
   }, [id, accessToken]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void loadSubject()} />} />;
   if (id === undefined) return <EmptyState title="Sujeto no encontrado." />;
   if (subject === null) return <SkeletonBlock height={420} />;
   const canManageSubject = hasPermission("MANAGE_SUBJECTS");

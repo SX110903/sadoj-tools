@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { notificationIcon } from "../../components/notifications/NotificationBell";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { NotificationItem, NotificationType } from "../../types/sadoj";
 
@@ -29,6 +29,7 @@ export function NotificationsPage(): JSX.Element {
   const [notifications, setNotifications] = useState<NotificationItem[] | null>(null);
   const [readFilter, setReadFilter] = useState<ReadFilter>("all");
   const [typeFilter, setTypeFilter] = useState<NotificationType | "all">("all");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const groups = useMemo(() => groupNotifications(notifications ?? []), [notifications]);
 
   const loadNotifications = async (): Promise<void> => {
@@ -37,7 +38,13 @@ export function NotificationsPage(): JSX.Element {
     if (typeFilter !== "all") params.set("type", typeFilter);
 
     const result = await apiRequest<NotificationItem[]>(`/api/notifications?${params.toString()}`, {}, accessToken);
-    if (!result.error) setNotifications(result.data);
+    if (result.error) {
+      setErrorMessage(result.message);
+      return;
+    }
+
+    setErrorMessage(null);
+    setNotifications(result.data);
   };
 
   useEffect(() => {
@@ -105,7 +112,8 @@ export function NotificationsPage(): JSX.Element {
         </label>
       </section>
 
-      {notifications === null ? <SkeletonBlock height={360} /> : null}
+      {errorMessage !== null ? <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void loadNotifications()} />} /> : null}
+      {errorMessage === null && notifications === null ? <SkeletonBlock height={360} /> : null}
       {notifications !== null && notifications.length === 0 ? <EmptyState title="No hay notificaciones." /> : null}
       {notifications !== null && notifications.length > 0 ? (
         <div className="notification-page-list">

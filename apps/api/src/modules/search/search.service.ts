@@ -1,6 +1,7 @@
 import { hasPermission, Permission, ROLE_LEVEL } from "@sadoj/shared";
 import { Prisma, type PrismaClient } from "../../shared/prisma";
 import type { AuthenticatedUser } from "../../types/fastify";
+import { hasGlobalPropertyAccess } from "../properties/property-access";
 import type { SearchQueryInput } from "./search.schema";
 
 export interface SearchResultItem {
@@ -24,12 +25,13 @@ export class SearchService {
 
   public async search(requester: AuthenticatedUser, query: SearchQueryInput): Promise<SearchResults> {
     const term = query.q;
+    const canViewSubjects = hasPermission(requester.role, Permission.VIEW_SUBJECTS);
     const [investigations, subjects, organizations, documents, properties] = await Promise.all([
       this.searchInvestigations(requester, term),
-      this.searchSubjects(term),
-      this.searchOrganizations(term),
-      this.searchDocuments(requester, term),
-      this.searchProperties(term)
+      canViewSubjects ? this.searchSubjects(term) : Promise.resolve([]),
+      canViewSubjects ? this.searchOrganizations(term) : Promise.resolve([]),
+      canViewSubjects ? this.searchDocuments(requester, term) : Promise.resolve([]),
+      canViewSubjects ? this.searchProperties(requester, term) : Promise.resolve([])
     ]);
 
     return { investigations, subjects, organizations, documents, properties };
@@ -140,9 +142,15 @@ export class SearchService {
     }));
   }
 
-  private async searchProperties(term: string): Promise<SearchResultItem[]> {
+  private async searchProperties(requester: AuthenticatedUser, term: string): Promise<SearchResultItem[]> {
+    const where: Prisma.PropertyWhereInput = { address: { contains: term, mode: "insensitive" } };
+
+    if (!hasGlobalPropertyAccess(requester)) {
+      where.members = { some: { userId: requester.id } };
+    }
+
     const rows = await this.prisma.property.findMany({
-      where: { address: { contains: term, mode: "insensitive" } },
+      where,
       take: 5,
       orderBy: { createdAt: "desc" },
       select: { id: true, address: true, type: true, zone: true }

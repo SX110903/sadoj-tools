@@ -9,10 +9,12 @@ import {
 } from "../../shared/prisma";
 import { sortTimelineEvents, type TimelineEvent } from "../../shared/timeline";
 import { buildPaginationMeta, getPagination, type PaginationMeta } from "../../shared/utils/pagination";
+import { isUniqueConstraintError } from "../../shared/prisma-errors";
 import type { AuthenticatedUser } from "../../types/fastify";
 import {
   canAccessProperty,
-  ensurePropertyAccess
+  ensurePropertyAccess,
+  hasGlobalPropertyAccess
 } from "./property-access";
 import type {
   CreatePropertyIncidentInput,
@@ -23,6 +25,8 @@ import type {
   UpdatePropertyMemberInput,
   UpsertPropertyMemberInput
 } from "./properties.schema";
+
+const INCIDENT_SEQUENCE_RETRY_LIMIT = 3;
 
 export interface PaginatedProperties {
   data: unknown[];
@@ -94,12 +98,16 @@ const PROPERTY_MEMBER_INCLUDE = {
 export class PropertiesService {
   public constructor(private readonly prisma: PrismaClient) {}
 
-  public async findAll(query: PropertiesQueryInput): Promise<PaginatedProperties> {
+  public async findAll(query: PropertiesQueryInput, requester: AuthenticatedUser): Promise<PaginatedProperties> {
     const pagination = getPagination(query);
     const where: Prisma.PropertyWhereInput = {};
 
     if (query.q !== undefined) {
       where.address = { contains: query.q, mode: "insensitive" };
+    }
+
+    if (!hasGlobalPropertyAccess(requester)) {
+      where.members = { some: { userId: requester.id } };
     }
 
     const [total, properties] = await this.prisma.$transaction([
@@ -125,7 +133,7 @@ export class PropertiesService {
     };
   }
 
-  public async findById(id: string): Promise<unknown> {
+  public async findById(id: string, requester: AuthenticatedUser): Promise<unknown> {
     const property = await this.prisma.property.findUnique({
       where: { id },
       include: { subjects: { include: { subject: true } } }
@@ -134,6 +142,8 @@ export class PropertiesService {
     if (property === null) {
       throw new AppError(404, "PROPERTY_NOT_FOUND", "No se encontro la propiedad solicitada.");
     }
+
+    await ensurePropertyAccess(this.prisma, requester, id, "read");
 
     return property;
   }
@@ -166,8 +176,9 @@ export class PropertiesService {
     });
   }
 
-  public async update(id: string, data: UpdatePropertyInput): Promise<unknown> {
-    await this.findById(id);
+  public async update(id: string, data: UpdatePropertyInput, requester: AuthenticatedUser): Promise<unknown> {
+    await this.ensurePropertyExists(id);
+    await ensurePropertyAccess(this.prisma, requester, id, "write");
     const updateData: Prisma.PropertyUpdateInput = {};
 
     if (data.address !== undefined) updateData.address = data.address;
@@ -180,8 +191,9 @@ export class PropertiesService {
     return this.prisma.property.update({ where: { id }, data: updateData });
   }
 
-  public async history(id: string): Promise<unknown[]> {
-    await this.findById(id);
+  public async history(id: string, requester: AuthenticatedUser): Promise<unknown[]> {
+    await this.ensurePropertyExists(id);
+    await ensurePropertyAccess(this.prisma, requester, id, "read");
 
     return this.prisma.warrant.findMany({
       where: this.propertyWarrantWhere(id),
@@ -253,34 +265,46 @@ export class PropertiesService {
     await ensurePropertyAccess(this.prisma, requester, id, "write");
     await this.ensureInvestigationExists(data.investigationId);
 
-    return this.prisma.$transaction(async (transaction) => {
-      const sequence = await this.nextIncidentSequence(transaction, id);
-      const incident = await transaction.propertyIncident.create({
-        data: {
-          propertyId: id,
-          sequence,
-          type: data.type,
-          title: data.title,
-          description: data.description,
-          result: data.result ?? null,
-          occurredAt: data.occurredAt,
-          origin: IncidentOrigin.MANUAL,
-          participatingAgencies: data.participatingAgencies ?? null,
-          evidence: data.evidence ?? null,
-          personsPresent: data.personsPresent ?? null,
-          investigationId: data.investigationId ?? null,
-          createdById: requester.id
-        },
-        include: PROPERTY_INCIDENT_INCLUDE
-      });
+    for (let attempt = 1; attempt <= INCIDENT_SEQUENCE_RETRY_LIMIT; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (transaction) => {
+          const sequence = await this.nextIncidentSequence(transaction, id);
+          const incident = await transaction.propertyIncident.create({
+            data: {
+              propertyId: id,
+              sequence,
+              type: data.type,
+              title: data.title,
+              description: data.description,
+              result: data.result ?? null,
+              occurredAt: data.occurredAt,
+              origin: IncidentOrigin.MANUAL,
+              participatingAgencies: data.participatingAgencies ?? null,
+              evidence: data.evidence ?? null,
+              personsPresent: data.personsPresent ?? null,
+              investigationId: data.investigationId ?? null,
+              createdById: requester.id
+            },
+            include: PROPERTY_INCIDENT_INCLUDE
+          });
 
-      await this.createAuditLog(transaction, requester.id, "PROPERTY_INCIDENT_CREATED", "PropertyIncident", incident.id, {
-        propertyId: id,
-        sequence
-      });
+          await this.createAuditLog(transaction, requester.id, "PROPERTY_INCIDENT_CREATED", "PropertyIncident", incident.id, {
+            propertyId: id,
+            sequence
+          });
 
-      return incident;
-    });
+          return incident;
+        });
+      } catch (error) {
+        if (attempt < INCIDENT_SEQUENCE_RETRY_LIMIT && isUniqueConstraintError(error, ["propertyId", "sequence"])) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw new AppError(409, "PROPERTY_INCIDENT_SEQUENCE_CONFLICT", "No se pudo asignar un numero de incidente. Intentalo de nuevo.");
   }
 
   public async updateIncident(id: string, incidentId: string, data: UpdatePropertyIncidentInput, requester: AuthenticatedUser): Promise<unknown> {
@@ -434,7 +458,10 @@ export class PropertiesService {
     });
   }
 
-  public async timeline(id: string): Promise<TimelineEvent[]> {
+  public async timeline(id: string, requester: AuthenticatedUser): Promise<TimelineEvent[]> {
+    await this.ensurePropertyExists(id);
+    await ensurePropertyAccess(this.prisma, requester, id, "read");
+
     const property = await this.prisma.property.findUnique({
       where: { id },
       include: {
@@ -561,8 +588,9 @@ export class PropertiesService {
     ]).slice(0, 60);
   }
 
-  public async delete(id: string): Promise<void> {
-    await this.findById(id);
+  public async delete(id: string, requester: AuthenticatedUser): Promise<void> {
+    await this.ensurePropertyExists(id);
+    await ensurePropertyAccess(this.prisma, requester, id, "admin");
     await this.prisma.property.delete({ where: { id } });
   }
 

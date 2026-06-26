@@ -28,9 +28,10 @@ type NotificationSocket = Socket<NotificationServerToClientEvents, NotificationC
 const SOCKET_URL = "http://127.0.0.1:3000/notifications";
 
 export function NotificationBell(): JSX.Element {
-  const { accessToken } = useAuth();
+  const { accessToken, refreshUser } = useAuth();
   const navigate = useNavigate();
   const socketRef = useRef<NotificationSocket | null>(null);
+  const connectionWarnedRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
   const [count, setCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -54,10 +55,19 @@ export function NotificationBell(): JSX.Element {
     void loadCount();
     const socket: NotificationSocket = io(SOCKET_URL, {
       auth: { token: accessToken },
-      transports: ["websocket"]
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionDelayMax: 10_000
     });
 
     socketRef.current = socket;
+    socket.io.on("reconnect_attempt", () => {
+      socket.auth = { token: accessToken };
+    });
+    socket.on("connect", () => {
+      connectionWarnedRef.current = false;
+      void loadCount();
+    });
     socket.on("notification", (notification) => {
       setNotifications((current) => [notification, ...current.filter((item) => item.id !== notification.id)].slice(0, 8));
       if (!notification.read) {
@@ -65,8 +75,13 @@ export function NotificationBell(): JSX.Element {
       }
     });
     socket.on("notification-count", (payload) => setCount(payload.count));
+    socket.on("error", (payload) => toast.error(payload.message));
     socket.on("connect_error", () => {
-      toast.error("No se pudo conectar con notificaciones.");
+      if (!connectionWarnedRef.current) {
+        toast.error("No se pudo conectar con notificaciones. Reintentando...");
+        connectionWarnedRef.current = true;
+      }
+      void refreshUser();
     });
 
     return () => {

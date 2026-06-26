@@ -437,7 +437,7 @@ model PropertyIncident {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  @@index([propertyId, sequence])
+  @@unique([propertyId, sequence])
   @@index([type])
   @@index([result])
   @@index([origin])

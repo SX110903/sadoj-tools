@@ -31,8 +31,9 @@ export async function createUserController(request: FastifyRequest, reply: Fasti
 
 export async function getUserController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const params = UserParamsSchema.parse(request.params);
+  const requester = getAuthenticatedUser(request);
   const service = new UsersService(request.server.prisma);
-  const user = await service.findById(params.id);
+  const user = await service.findById(params.id, requester);
 
   reply.send({ error: false, data: user });
 }

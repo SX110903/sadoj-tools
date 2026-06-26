@@ -1,5 +1,5 @@
 import { CalendarClock, FolderPlus, LayoutGrid, List, Search, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -21,33 +21,40 @@ export function InvestigationsListPage(): JSX.Element {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async (): Promise<void> => {
-      const params = new URLSearchParams({ limit: "100" });
-      if (filters.search.trim().length > 0) params.set("search", filters.search.trim());
-      if (filters.status.length > 0) params.set("status", filters.status);
-      if (filters.type.length > 0) params.set("type", filters.type);
-      if (filters.priority.length > 0) params.set("priority", filters.priority);
+  const loadInvestigations = useCallback(async (): Promise<void> => {
+    const params = new URLSearchParams({ limit: "100" });
+    if (filters.search.trim().length > 0) params.set("search", filters.search.trim());
+    if (filters.status.length > 0) params.set("status", filters.status);
+    if (filters.type.length > 0) params.set("type", filters.type);
+    if (filters.priority.length > 0) params.set("priority", filters.priority);
 
-      const result = await apiRequest<InvestigationListItem[]>(`/api/investigations?${params.toString()}`, {}, accessToken);
+    const result = await apiRequest<InvestigationListItem[]>(`/api/investigations?${params.toString()}`, {}, accessToken);
 
-      if (result.error) {
-        setErrorMessage(result.message);
-        return;
-      }
+    if (result.error) {
+      setErrorMessage(result.message);
+      return;
+    }
 
-      setErrorMessage(null);
-      setInvestigations(result.data);
-    };
-
-    void load();
+    setErrorMessage(null);
+    setInvestigations(result.data);
   }, [accessToken, filters]);
+
+  useEffect(() => {
+    void loadInvestigations();
+  }, [loadInvestigations]);
 
   const setFilter = (field: keyof typeof filters, value: string): void => {
     setFilters((current) => ({ ...current, [field]: value }));
   };
 
-  if (errorMessage !== null && investigations === null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null && investigations === null) {
+    return (
+      <EmptyState
+        title={errorMessage}
+        action={<button type="button" className="secondary-link" onClick={() => void loadInvestigations()}>Reintentar</button>}
+      />
+    );
+  }
   if (investigations === null) return <SkeletonBlock height={360} />;
 
   return (
@@ -68,9 +75,9 @@ export function InvestigationsListPage(): JSX.Element {
             </button>
           </div>
           {hasPermission("CREATE_INVESTIGATION") ? (
-            <Link className="primary-link" to="/dashboard">
+            <Link className="primary-link" to="/investigaciones/nueva">
               <FolderPlus size={16} />
-              Nueva
+              Nueva investigación
             </Link>
           ) : null}
         </div>

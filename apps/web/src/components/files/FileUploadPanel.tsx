@@ -2,6 +2,7 @@ import { FileText, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../auth/auth-context";
 import { SecureImage } from "../common/SecureImage";
+import { RetryButton } from "../ui";
 import { apiRequest } from "../../services/api";
 import type { CaseFile } from "../../types/sadoj";
 import { formatBytes, shortDateTime } from "../../utils/labels";
@@ -31,9 +32,13 @@ export function FileUploadPanel({ targetType, targetId, initialFiles = [] }: Fil
   const loadFiles = async (): Promise<void> => {
     const result = await apiRequest<CaseFile[]>(`/api/files?targetType=${targetType}&targetId=${targetId}`, {}, accessToken);
 
-    if (!result.error) {
-      setFiles(result.data);
+    if (result.error) {
+      setErrorMessage(result.message);
+      return;
     }
+
+    setErrorMessage(null);
+    setFiles(result.data);
   };
 
   useEffect(() => {
@@ -123,8 +128,13 @@ export function FileUploadPanel({ targetType, targetId, initialFiles = [] }: Fil
             <Upload size={16} />
             {isUploading ? "Subiendo..." : "Subir archivo"}
           </button>
-          {errorMessage !== null ? <p className="error-message">{errorMessage}</p> : null}
         </section>
+      ) : null}
+      {errorMessage !== null ? (
+        <div className="panel">
+          <p className="error-message">{errorMessage}</p>
+          <RetryButton onRetry={() => void loadFiles()} />
+        </div>
       ) : null}
       <section className="file-grid">
         {files.length === 0 ? <p className="muted">No hay archivos adjuntos.</p> : null}

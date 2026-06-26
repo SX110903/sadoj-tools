@@ -2,11 +2,11 @@ import { RoleType } from "@sadoj/shared";
 import { z } from "zod";
 
 const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-const IMAGE_URL_REGEX = /\.(jpg|jpeg|png|webp|gif)$/i;
+const IMAGE_URL_REGEX = /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i;
 
 export const ImageUrlSchema = z.string().trim().url().refine(
-  (url) => IMAGE_URL_REGEX.test(url) || url.includes("imgur.com"),
-  { message: "Debe ser un enlace directo a una imagen (Imgur, etc.)." }
+  (url) => IMAGE_URL_REGEX.test(url),
+  { message: "Debe ser un enlace directo a una imagen (jpg, jpeg, png, webp o gif)." }
 );
 
 export const UserParamsSchema = z.object({

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/auth-context";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest, type PaginationMeta } from "../../services/api";
 import type { RoleType } from "../../types/sadoj";
 import { formatAuditAction } from "../../utils/auditFormat";
@@ -53,7 +53,7 @@ export function AuditLogPage(): JSX.Element {
     setFilters((current) => ({ ...current, [field]: value }));
   };
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (logs === null) return <SkeletonBlock height={420} />;
 
   return (

@@ -2,7 +2,7 @@ import { ClipboardList, Scale, ShieldAlert, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { RoleType } from "../../types/sadoj";
 import { formatAuditAction } from "../../utils/auditFormat";
@@ -62,7 +62,7 @@ export function AdminDashboardPage(): JSX.Element {
     void load();
   }, [accessToken]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (stats === null) return <SkeletonBlock height={420} />;
 
   return (

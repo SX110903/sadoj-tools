@@ -39,7 +39,7 @@ type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 const SOCKET_URL = "http://127.0.0.1:3000/chat";
 
 export function ChatPanel({ roomId, investigationId }: ChatPanelProps): JSX.Element {
-  const { accessToken, user } = useAuth();
+  const { accessToken, refreshUser, user } = useAuth();
   const socketRef = useRef<ChatSocket | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -70,11 +70,24 @@ export function ChatPanel({ roomId, investigationId }: ChatPanelProps): JSX.Elem
     void loadMessages();
     const socket: ChatSocket = io(SOCKET_URL, {
       auth: { token: accessToken },
-      transports: ["websocket"]
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionDelayMax: 10_000
     });
 
     socketRef.current = socket;
-    socket.on("connect", () => socket.emit("join-room", { roomId }));
+    socket.io.on("reconnect_attempt", () => {
+      socket.auth = { token: accessToken };
+    });
+    socket.on("connect", () => {
+      setErrorMessage(null);
+      socket.emit("join-room", { roomId });
+    });
+    socket.on("disconnect", (reason) => {
+      if (reason !== "io client disconnect") {
+        setErrorMessage("Chat reconectando...");
+      }
+    });
     socket.on("new-message", (payload) => {
       setMessages((current) => (current.some((message) => message.id === payload.message.id) ? current : [...current, payload.message]));
     });
@@ -83,7 +96,10 @@ export function ChatPanel({ roomId, investigationId }: ChatPanelProps): JSX.Elem
       setTypingLabel(payload.isTyping ? `${payload.displayName} está escribiendo...` : null);
     });
     socket.on("error", (payload) => setErrorMessage(payload.message));
-    socket.on("connect_error", () => setErrorMessage("No se pudo conectar el chat."));
+    socket.on("connect_error", () => {
+      setErrorMessage("No se pudo conectar el chat. Reintentando...");
+      void refreshUser();
+    });
 
     return () => {
       socket.emit("leave-room", { roomId });

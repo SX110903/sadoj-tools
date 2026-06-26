@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { DatalinkGraph } from "../../components/datalink/DatalinkGraph";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { CriminalOrganization, DatalinkGraph as DatalinkGraphData, InvestigationListItem } from "../../types/sadoj";
 
@@ -13,6 +13,8 @@ export function DatalinkPage(): JSX.Element {
   const [investigations, setInvestigations] = useState<InvestigationListItem[]>([]);
   const [graph, setGraph] = useState<DatalinkGraphData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [optionsErrorMessage, setOptionsErrorMessage] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const subjectId = searchParams.get("subjectId");
   const selectedInvestigationId = searchParams.get("investigationId") ?? "";
   const selectedOrganizationId = searchParams.get("organizationId") ?? "";
@@ -24,23 +26,48 @@ export function DatalinkPage(): JSX.Element {
   }, [selectedInvestigationId, selectedOrganizationId, subjectId]);
 
   useEffect(() => {
+    let isActive = true;
+
     const loadOrganizations = async (): Promise<void> => {
+      setOptionsErrorMessage(null);
       const [organizationResult, investigationResult] = await Promise.all([
         apiRequest<CriminalOrganization[]>("/api/organizations", {}, accessToken),
         apiRequest<InvestigationListItem[]>("/api/investigations?limit=100", {}, accessToken)
       ]);
-      if (!organizationResult.error) setOrganizations(organizationResult.data);
-      if (!investigationResult.error) setInvestigations(investigationResult.data);
+
+      if (!isActive) return;
+
+      if (organizationResult.error) {
+        setOrganizations([]);
+        setOptionsErrorMessage(organizationResult.message);
+      } else {
+        setOrganizations(organizationResult.data);
+      }
+
+      if (investigationResult.error) {
+        setInvestigations([]);
+        setOptionsErrorMessage((current) => current ?? investigationResult.message);
+      } else {
+        setInvestigations(investigationResult.data);
+      }
     };
 
     void loadOrganizations();
-  }, [accessToken]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [accessToken, reloadKey]);
 
   useEffect(() => {
+    let isActive = true;
+
     const loadGraph = async (): Promise<void> => {
       setGraph(null);
       setErrorMessage(null);
       const result = await apiRequest<DatalinkGraphData>(graphEndpoint, {}, accessToken);
+
+      if (!isActive) return;
 
       if (result.error) {
         setErrorMessage(result.message);
@@ -51,7 +78,15 @@ export function DatalinkPage(): JSX.Element {
     };
 
     void loadGraph();
-  }, [accessToken, graphEndpoint]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [accessToken, graphEndpoint, reloadKey]);
+
+  const retryLoad = (): void => {
+    setReloadKey((current) => current + 1);
+  };
 
   const handleOrganizationChange = (organizationId: string): void => {
     if (organizationId.length === 0) {
@@ -118,7 +153,8 @@ export function DatalinkPage(): JSX.Element {
           </Link>
         </div>
       </header>
-      {errorMessage !== null ? <EmptyState title={errorMessage} /> : graph === null ? <SkeletonBlock height={620} /> : <DatalinkGraph graph={graph} />}
+      {optionsErrorMessage !== null ? <p className="error-message">{optionsErrorMessage}</p> : null}
+      {errorMessage !== null ? <EmptyState title={errorMessage} action={<RetryButton onRetry={retryLoad} />} /> : graph === null ? <SkeletonBlock height={620} /> : <DatalinkGraph graph={graph} />}
     </div>
   );
 }

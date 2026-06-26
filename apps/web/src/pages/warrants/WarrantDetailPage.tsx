@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { FileUploadPanel } from "../../components/files/FileUploadPanel";
 import { StatusBadge } from "../../components/StatusBadge";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { RoleType, Warrant, WarrantReport, WarrantResult } from "../../types/sadoj";
 import { shortDateTime, TYPE_LABELS } from "../../utils/labels";
@@ -55,7 +55,7 @@ export function WarrantDetailPage(): JSX.Element {
     setWarrant(result.data);
   };
 
-  if (errorMessage !== null && warrant === null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null && warrant === null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void load()} />} />;
   if (id === undefined) return <EmptyState title="Orden no encontrada." />;
   if (warrant === null) return <SkeletonBlock height={420} />;
 

@@ -1,7 +1,7 @@
 import { Edit3, Pin, PinOff, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/auth-context";
-import { RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { MentionTextarea } from "../mentions/MentionTextarea";
 import { apiRequest } from "../../services/api";
 import type { NoteWithAuthor, RoleType } from "../../types/sadoj";
@@ -38,6 +38,7 @@ export function NotesPanel({ target, targetId }: NotesPanelProps): JSX.Element {
   const canUseConfidential = user !== null && ROLE_LEVEL[user.role as RoleType] >= ROLE_LEVEL.FISCAL_JEFE;
 
   const loadNotes = async (): Promise<void> => {
+    setErrorMessage(null);
     const result = await apiRequest<NoteWithAuthor[]>(`/api/${target}/${targetId}/notes`, {}, accessToken);
 
     if (result.error) {
@@ -123,6 +124,10 @@ export function NotesPanel({ target, targetId }: NotesPanelProps): JSX.Element {
     setNotes((current) => (current ?? []).filter((item) => item.id !== note.id));
   };
 
+  if (errorMessage !== null && notes === null) {
+    return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void loadNotes()} />} />;
+  }
+
   if (notes === null) {
     return <SkeletonBlock height={240} />;
   }
@@ -148,7 +153,7 @@ export function NotesPanel({ target, targetId }: NotesPanelProps): JSX.Element {
                 Confidencial
               </label>
             ) : (
-              <span className="muted">Las notas confidenciales requieren rango Fiscal Jefe o superior.</span>
+              <span className="muted">Las notas confidenciales requieren rango Deputy District Attorney o superior.</span>
             )}
             <button type="submit" className="primary-button" disabled={content.trim().length < 2}>
               Añadir nota

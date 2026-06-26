@@ -73,7 +73,7 @@ export function CitacionFiscalTemplate({ data, onChange }: CitacionFiscalTemplat
             name="cargoFiscal"
             value={data.cargoFiscal}
             onChange={(v) => updateField('cargoFiscal', v)}
-            placeholder="Fiscal Instructor / Fiscal Jefe..."
+            placeholder="Assistant Prosecutor / Deputy District Attorney..."
             required
           />
         </div>

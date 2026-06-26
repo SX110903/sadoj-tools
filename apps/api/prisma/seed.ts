@@ -73,7 +73,8 @@ main()
     await prisma.$disconnect();
   })
   .catch(async (error: unknown) => {
-    console.error(error);
+    const message = error instanceof Error ? error.stack ?? error.message : String(error);
+    process.stderr.write(`${message}\n`);
     await prisma.$disconnect();
     process.exit(1);
   });

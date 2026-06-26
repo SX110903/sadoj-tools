@@ -16,8 +16,9 @@ import { PropertiesService } from "./properties.service";
 
 export async function listPropertiesController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const query = PropertiesQuerySchema.parse(request.query);
+  const requester = getAuthenticatedUser(request);
   const service = new PropertiesService(request.server.prisma);
-  const result = await service.findAll(query);
+  const result = await service.findAll(query, requester);
   reply.send({ error: false, data: result.data, meta: result.meta });
 }
 
@@ -31,30 +32,34 @@ export async function createPropertyController(request: FastifyRequest, reply: F
 
 export async function getPropertyController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const params = PropertyParamsSchema.parse(request.params);
+  const requester = getAuthenticatedUser(request);
   const service = new PropertiesService(request.server.prisma);
-  const property = await service.findById(params.id);
+  const property = await service.findById(params.id, requester);
   reply.send({ error: false, data: property });
 }
 
 export async function updatePropertyController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const params = PropertyParamsSchema.parse(request.params);
   const body = UpdatePropertySchema.parse(request.body);
+  const requester = getAuthenticatedUser(request);
   const service = new PropertiesService(request.server.prisma);
-  const property = await service.update(params.id, body);
+  const property = await service.update(params.id, body, requester);
   reply.send({ error: false, data: property, message: "Propiedad actualizada correctamente." });
 }
 
 export async function deletePropertyController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const params = PropertyParamsSchema.parse(request.params);
+  const requester = getAuthenticatedUser(request);
   const service = new PropertiesService(request.server.prisma);
-  await service.delete(params.id);
+  await service.delete(params.id, requester);
   reply.send({ error: false, data: { deleted: true }, message: "Propiedad eliminada correctamente." });
 }
 
 export async function getPropertyHistoryController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const params = PropertyParamsSchema.parse(request.params);
+  const requester = getAuthenticatedUser(request);
   const service = new PropertiesService(request.server.prisma);
-  const history = await service.history(params.id);
+  const history = await service.history(params.id, requester);
   reply.send({ error: false, data: history });
 }
 
@@ -68,8 +73,9 @@ export async function getPropertyDossierController(request: FastifyRequest, repl
 
 export async function getPropertyTimelineController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const params = PropertyParamsSchema.parse(request.params);
+  const requester = getAuthenticatedUser(request);
   const service = new PropertiesService(request.server.prisma);
-  const timeline = await service.timeline(params.id);
+  const timeline = await service.timeline(params.id, requester);
   reply.send({ error: false, data: timeline });
 }
 

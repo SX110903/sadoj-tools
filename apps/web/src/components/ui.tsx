@@ -22,3 +22,16 @@ export function EmptyState({ title, description, action, icon }: { title: string
     </div>
   );
 }
+
+export function RetryButton({ onRetry }: { onRetry?: () => void }): JSX.Element {
+  const handleRetry = (): void => {
+    if (onRetry !== undefined) {
+      onRetry();
+      return;
+    }
+
+    window.location.reload();
+  };
+
+  return <button type="button" className="secondary-link" onClick={handleRetry}>Reintentar</button>;
+}

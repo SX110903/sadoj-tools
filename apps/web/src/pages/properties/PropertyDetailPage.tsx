@@ -5,7 +5,7 @@ import { SecureImage } from "../../components/common/SecureImage";
 import { FileUploadPanel } from "../../components/files/FileUploadPanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { TimelinePanel } from "../../components/timeline/TimelinePanel";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type {
   AccessLevel,
@@ -206,7 +206,7 @@ export function PropertyDetailPage(): JSX.Element {
   };
 
   if (id === undefined) return <EmptyState title="Propiedad no encontrada." />;
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void loadDossier()} />} />;
   if (dossier === null) return <SkeletonBlock height={420} />;
 
   const property = dossier.property;
@@ -524,7 +524,7 @@ function MembersTab({
     <section className="stack">
       <article className="panel">
         <h2>Acceso al expediente</h2>
-        <p className="muted">Los fiscales con rango Fiscal de División o superior tienen acceso global. Los miembros añadidos aquí aplican permisos específicos sobre esta propiedad.</p>
+        <p className="muted">Los fiscales con rango District Attorney o superior tienen acceso global. Los miembros añadidos aquí aplican permisos específicos sobre esta propiedad.</p>
         {dossier.permissions.canManageMembers ? (
           <div className="form-grid">
             <label>Fiscal<select value={memberForm.userId} onChange={(event) => onMemberFormChange({ ...memberForm, userId: event.target.value })}><option value="">Seleccionar fiscal</option>{users.map((user) => <option key={user.id} value={user.id}>{user.displayName} · {TYPE_LABELS[user.role] ?? user.role}</option>)}</select></label>

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { StatusBadge } from "../../components/StatusBadge";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { CriminalOrganization, MapElement, Subject } from "../../types/sadoj";
 import { TYPE_LABELS, shortDateTime } from "../../utils/labels";
@@ -39,7 +39,7 @@ export function OrganizationDetailPage(): JSX.Element {
     void load();
   }, [id, accessToken]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (id === undefined) return <EmptyState title="Organización no encontrada." />;
   if (organization === null) return <SkeletonBlock height={420} />;
 

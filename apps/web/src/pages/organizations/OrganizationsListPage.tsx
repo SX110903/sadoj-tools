@@ -2,7 +2,7 @@ import { Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { CriminalOrganization, OrgType } from "../../types/sadoj";
 import { TYPE_LABELS, shortDateTime } from "../../utils/labels";
@@ -45,6 +45,7 @@ export function OrganizationsListPage(): JSX.Element {
       return;
     }
 
+    setErrorMessage(null);
     setOrganizations(result.data);
   };
 
@@ -79,7 +80,7 @@ export function OrganizationsListPage(): JSX.Element {
     setMessage("Organización creada correctamente.");
   };
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void loadOrganizations("")} />} />;
   if (organizations === null) return <SkeletonBlock height={320} />;
 
   return (
@@ -113,7 +114,10 @@ export function OrganizationsListPage(): JSX.Element {
       {message !== null ? <p className="muted">{message}</p> : null}
 
       <section className="panel table-wrap">
-        <table>
+        {organizations.length === 0 ? (
+          <EmptyState title="No hay organizaciones con esos filtros." action={canManage ? <button type="button" className="secondary-link" onClick={() => setShowCreate(true)}>Crear organización</button> : undefined} />
+        ) : (
+          <table>
           <thead>
             <tr>
               <th>Color</th>
@@ -140,7 +144,8 @@ export function OrganizationsListPage(): JSX.Element {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        )}
       </section>
 
       {showCreate ? (

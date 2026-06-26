@@ -3,16 +3,16 @@ import { RoleType } from "./types";
 export const API_URL = "/api";
 
 export const ROLE_LABELS_ES: Readonly<Record<RoleType, string>> = {
-  [RoleType.FISCAL_GENERAL]: "Fiscal General",
-  [RoleType.FISCAL_ADJUNTO]: "Fiscal General Adjunto",
-  [RoleType.FISCAL_DIVISION]: "Fiscal de División",
-  [RoleType.FISCAL_SUPERIOR]: "Fiscal Superior",
-  [RoleType.FISCAL_JEFE]: "Fiscal Jefe",
-  [RoleType.FISCAL]: "Fiscal",
-  [RoleType.FISCAL_AUXILIAR]: "Fiscal Auxiliar",
-  [RoleType.INVESTIGADOR_SENIOR]: "Investigador DAI Senior",
-  [RoleType.INVESTIGADOR_JUNIOR]: "Investigador DAI Junior",
-  [RoleType.PASANTE]: "Pasante"
+  [RoleType.FISCAL_GENERAL]: "Attorney General",
+  [RoleType.FISCAL_ADJUNTO]: "Deputy Attorney General",
+  [RoleType.FISCAL_DIVISION]: "District Attorney",
+  [RoleType.FISCAL_SUPERIOR]: "Senior Deputy District Attorney",
+  [RoleType.FISCAL_JEFE]: "Deputy District Attorney",
+  [RoleType.FISCAL]: "Senior Prosecutor",
+  [RoleType.FISCAL_AUXILIAR]: "Prosecutor",
+  [RoleType.INVESTIGADOR_SENIOR]: "Assistant Prosecutor",
+  [RoleType.INVESTIGADOR_JUNIOR]: "Legal Staff",
+  [RoleType.PASANTE]: "Legal Intern"
 };
 
 export const ROLE_LEVEL: Readonly<Record<RoleType, number>> = {

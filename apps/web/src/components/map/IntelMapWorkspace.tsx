@@ -7,7 +7,7 @@ import { apiRequest } from "../../services/api";
 import type { CriminalOrganization, MapElement, MapElementType, OrgType, Property, PropertyDossier, Subject } from "../../types/sadoj";
 import { shortDateTime, STATUS_LABELS, TYPE_LABELS } from "../../utils/labels";
 import { parseGeoJson } from "../../utils/mapCoords";
-import { EmptyState, SkeletonBlock } from "../ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../ui";
 import { LosSantosMap } from "./LosSantosMap";
 
 const ORG_TYPES: readonly OrgType[] = ["GANG", "CARTEL", "MAFIA", "BIKER", "CORPORATE", "OTHER"];
@@ -83,11 +83,13 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
   const [historyTarget, setHistoryTarget] = useState<PropertyHistoryTarget | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const canManageIntel = hasPermission("MANAGE_SUBJECTS");
 
   const nextLegendNumber = useMemo(() => (elements ?? []).reduce((max, element) => Math.max(max, element.legendNumber), 0) + 1, [elements]);
 
   const load = async (): Promise<void> => {
+    setLoadError(null);
     const query = investigationId === undefined ? "" : `?investigationId=${encodeURIComponent(investigationId)}`;
     const [elementsResult, organizationsResult, subjectsResult, propertiesResult] = await Promise.all([
       apiRequest<MapElement[]>(`/api/map/elements${query}`, {}, accessToken),
@@ -97,12 +99,17 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
     ]);
 
     if (elementsResult.error) {
-      setMessage(elementsResult.message);
+      setLoadError(elementsResult.message);
     } else {
       setElements(elementsResult.data);
     }
 
-    if (!organizationsResult.error) setOrganizations(organizationsResult.data);
+    if (organizationsResult.error) {
+      setOrganizations([]);
+      setMessage(organizationsResult.message);
+    } else {
+      setOrganizations(organizationsResult.data);
+    }
     if (!subjectsResult.error) setSubjects(subjectsResult.data);
     if (!propertiesResult.error) setProperties(propertiesResult.data);
   };
@@ -330,6 +337,10 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
     setMessage("Elemento eliminado.");
     await load();
   };
+
+  if (loadError !== null && elements === null) {
+    return <EmptyState title={loadError} action={<RetryButton onRetry={() => void load()} />} />;
+  }
 
   if (elements === null || organizations === null) return <SkeletonBlock height={620} />;
 
@@ -725,14 +736,22 @@ function pointCoordinatesFromGeoJson(value: string): PointCoordinates | null {
   if (geoJson === null) return null;
 
   if (isPointFeature(geoJson)) {
-    return { gtaX: geoJson.geometry.coordinates[0] ?? 0, gtaY: geoJson.geometry.coordinates[1] ?? 0 };
+    return pointCoordinatesOrNull(geoJson.geometry.coordinates[0], geoJson.geometry.coordinates[1]);
   }
 
   if (isPointGeometry(geoJson)) {
-    return { gtaX: geoJson.coordinates[0] ?? 0, gtaY: geoJson.coordinates[1] ?? 0 };
+    return pointCoordinatesOrNull(geoJson.coordinates[0], geoJson.coordinates[1]);
   }
 
   return null;
+}
+
+function pointCoordinatesOrNull(gtaX: number | undefined, gtaY: number | undefined): PointCoordinates | null {
+  if (gtaX === undefined || gtaY === undefined || !Number.isFinite(gtaX) || !Number.isFinite(gtaY)) {
+    return null;
+  }
+
+  return { gtaX, gtaY };
 }
 
 function isPointFeature(value: GeoJSON.GeoJsonObject): value is GeoJSON.Feature<GeoJSON.Point> {

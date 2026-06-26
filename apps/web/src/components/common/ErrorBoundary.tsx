@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportClientError } from "../../utils/clientDiagnostics";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -17,7 +18,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error("Error capturado por ErrorBoundary:", error, errorInfo);
+    reportClientError("Error capturado por ErrorBoundary.", { error: error.message, componentStack: errorInfo.componentStack });
   }
 
   public override render(): ReactNode {

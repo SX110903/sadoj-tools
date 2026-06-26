@@ -54,6 +54,8 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const AUTH_REFRESHED_EVENT = "sadoj:auth-refreshed";
+const AUTH_EXPIRED_EVENT = "sadoj:auth-expired";
 
 export function AuthProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -61,14 +63,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    window.history.replaceState({}, document.title, window.location.pathname);
+    removeLoginCredentialParams();
+    const handleAuthRefreshed = (event: Event): void => {
+      const detail = (event as CustomEvent<unknown>).detail;
+
+      if (isAuthPayload(detail)) {
+        setAccessToken(detail.accessToken);
+        setUser(detail.user);
+      }
+    };
+    const handleAuthExpired = (): void => {
+      setAccessToken(null);
+      setUser(null);
+    };
+
+    window.addEventListener(AUTH_REFRESHED_EVENT, handleAuthRefreshed);
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
     void refreshUser().finally(() => setIsLoading(false));
+
+    return () => {
+      window.removeEventListener(AUTH_REFRESHED_EVENT, handleAuthRefreshed);
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
   }, []);
 
   const refreshUser = async (): Promise<void> => {
     const result = await apiRequest<AuthPayload>("/api/auth/refresh", {
       method: "POST",
-      body: "{}"
+      body: "{}",
+      suppressToast: true
     });
 
     if (!result.error) {
@@ -117,6 +140,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+function removeLoginCredentialParams(): void {
+  const url = new URL(window.location.href);
+  const shouldCleanCredentials = url.pathname === "/login" && (url.searchParams.has("username") || url.searchParams.has("password"));
+
+  if (!shouldCleanCredentials) {
+    return;
+  }
+
+  url.searchParams.delete("username");
+  url.searchParams.delete("password");
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+}
+
+function isAuthPayload(value: unknown): value is AuthPayload {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const payload = value as Record<string, unknown>;
+  return typeof payload.accessToken === "string" && isUserSession(payload.user);
+}
+
+function isUserSession(value: unknown): value is UserSession {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const user = value as Record<string, unknown>;
+  return (
+    typeof user.id === "string" &&
+    typeof user.username === "string" &&
+    typeof user.displayName === "string" &&
+    Array.isArray(user.permissions)
+  );
+}
+
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
 
@@ -126,4 +185,3 @@ export function useAuth(): AuthContextValue {
 
   return context;
 }
-

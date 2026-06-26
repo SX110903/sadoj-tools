@@ -1,14 +1,14 @@
 export const ROLE_LABELS: Readonly<Record<string, string>> = {
-  FISCAL_GENERAL: "Fiscal General",
-  FISCAL_ADJUNTO: "Fiscal General Adjunto",
-  FISCAL_DIVISION: "Fiscal de División",
-  FISCAL_SUPERIOR: "Fiscal Superior",
-  FISCAL_JEFE: "Fiscal Jefe",
-  FISCAL: "Fiscal",
-  FISCAL_AUXILIAR: "Fiscal Auxiliar",
-  INVESTIGADOR_SENIOR: "Investigador Senior",
-  INVESTIGADOR_JUNIOR: "Investigador Junior",
-  PASANTE: "Pasante"
+  FISCAL_GENERAL: "Attorney General",
+  FISCAL_ADJUNTO: "Deputy Attorney General",
+  FISCAL_DIVISION: "District Attorney",
+  FISCAL_SUPERIOR: "Senior Deputy District Attorney",
+  FISCAL_JEFE: "Deputy District Attorney",
+  FISCAL: "Senior Prosecutor",
+  FISCAL_AUXILIAR: "Prosecutor",
+  INVESTIGADOR_SENIOR: "Assistant Prosecutor",
+  INVESTIGADOR_JUNIOR: "Legal Staff",
+  PASANTE: "Legal Intern"
 };
 
 export const ROLE_BADGE_CLASS: Readonly<Record<string, string>> = {

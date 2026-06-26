@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth, type UserSession } from "../../auth/auth-context";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest, type PaginationMeta } from "../../services/api";
 
 export function FiscalesListPage(): JSX.Element {
@@ -39,7 +39,7 @@ export function FiscalesListPage(): JSX.Element {
   }
 
   if (errorMessage !== null) {
-    return <EmptyState title={errorMessage} />;
+    return <EmptyState title={errorMessage} action={<RetryButton />} />;
   }
 
   return (

@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { StatusBadge } from "../../components/StatusBadge";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { Subject } from "../../types/sadoj";
 
@@ -21,13 +21,14 @@ export function SubjectsListPage(): JSX.Element {
         return;
       }
 
+      setErrorMessage(null);
       setSubjects(result.data);
     };
 
     void load();
   }, [accessToken]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (subjects === null) return <SkeletonBlock height={320} />;
 
   return (
@@ -38,14 +39,17 @@ export function SubjectsListPage(): JSX.Element {
           <h1>Sujetos</h1>
         </div>
         {hasPermission("MANAGE_SUBJECTS") ? (
-          <Link className="primary-link" to="/sujetos/new">
+          <Link className="primary-link" to="/sujetos/nuevo">
             <Plus size={18} />
             Nuevo sujeto
           </Link>
         ) : null}
       </div>
       <section className="panel table-wrap">
-        <table>
+        {subjects.length === 0 ? (
+          <EmptyState title="No hay sujetos registrados." action={hasPermission("MANAGE_SUBJECTS") ? <Link className="secondary-link" to="/sujetos/nuevo">Crear sujeto</Link> : undefined} />
+        ) : (
+          <table>
           <thead>
             <tr>
               <th>Nombre</th>
@@ -68,7 +72,8 @@ export function SubjectsListPage(): JSX.Element {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        )}
       </section>
     </div>
   );

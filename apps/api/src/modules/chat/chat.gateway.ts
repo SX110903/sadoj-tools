@@ -240,6 +240,12 @@ function handleTyping(socket: ChatSocket, rawPayload: unknown, isTyping: boolean
     return;
   }
 
+  // Only emit if socket is actually in the room (joined via join-room which verifies membership)
+  if (!socket.rooms.has(payload.data.roomId)) {
+    emitSocketError(socket, "CHAT_ACCESS_DENIED", "No formas parte de esta sala de chat.");
+    return;
+  }
+
   socket.to(payload.data.roomId).emit("typing", { userId: socket.data.user.id, displayName: socket.data.displayName, isTyping });
 }
 

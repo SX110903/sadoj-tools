@@ -1,5 +1,5 @@
-import { ROLE_LEVEL, type RoleType } from "@sadoj/shared";
-import { InvestigationStatus, SubjectStatus, WarrantStatus, type PrismaClient } from "../../shared/prisma";
+import { hasPermission, Permission, ROLE_LEVEL, type RoleType } from "@sadoj/shared";
+import { InvestigationStatus, Prisma, SubjectStatus, WarrantStatus, type PrismaClient } from "../../shared/prisma";
 import type { AuthenticatedUser } from "../../types/fastify";
 
 interface PersonnelSummary {
@@ -18,27 +18,40 @@ export class DashboardService {
   public constructor(private readonly prisma: PrismaClient) {}
 
   public async stats(requester: AuthenticatedUser): Promise<unknown> {
-    const [activeInvestigations, watchedSubjects, pendingWarrants, myActivity, recentInvestigations, recentActivity] = await this.prisma.$transaction([
-      this.prisma.investigation.count({ where: { status: { in: [InvestigationStatus.OPEN, InvestigationStatus.ACTIVE] } } }),
-      this.prisma.subject.count({ where: { status: SubjectStatus.UNDER_SURVEILLANCE } }),
-      this.prisma.warrant.count({ where: { status: WarrantStatus.PENDING } }),
-      this.prisma.auditLog.count({ where: { userId: requester.id, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
-      this.prisma.investigation.findMany({
-        where: {
-          OR: [{ leadFiscalId: requester.id }, { participants: { some: { userId: requester.id } } }]
+    const canViewAllInvestigations = hasPermission(requester.role, Permission.VIEW_ALL_INVESTIGATIONS);
+    const canViewSubjects = hasPermission(requester.role, Permission.VIEW_SUBJECTS);
+    const canManageWarrants = hasPermission(requester.role, Permission.MANAGE_WARRANTS);
+    const canViewAuditLog = hasPermission(requester.role, Permission.VIEW_AUDIT_LOG);
+    const assignedInvestigationWhere: Prisma.InvestigationWhereInput = {
+      OR: [{ leadFiscalId: requester.id }, { participants: { some: { userId: requester.id } } }]
+    };
+    const activeInvestigationWhere: Prisma.InvestigationWhereInput = {
+      status: { in: [InvestigationStatus.OPEN, InvestigationStatus.ACTIVE] },
+      ...(canViewAllInvestigations ? {} : assignedInvestigationWhere)
+    };
+    const recentActivityWhere: Prisma.AuditLogWhereInput = canViewAuditLog ? {} : { userId: requester.id };
+    const recentInvestigationsArgs: Prisma.InvestigationFindManyArgs = {
+      ...(canViewAllInvestigations ? {} : { where: assignedInvestigationWhere }),
+      take: 5,
+      orderBy: { updatedAt: "desc" },
+      include: {
+        leadFiscal: { select: { id: true, displayName: true, role: true, avatar: true } },
+        participants: {
+          take: 4,
+          include: { user: { select: { id: true, displayName: true, avatar: true, role: true } } }
         },
-        take: 5,
-        orderBy: { updatedAt: "desc" },
-        include: {
-          leadFiscal: { select: { id: true, displayName: true, role: true, avatar: true } },
-          participants: {
-            take: 4,
-            include: { user: { select: { id: true, displayName: true, avatar: true, role: true } } }
-          },
-          _count: { select: { participants: true, subjects: true } }
-        }
-      }),
+        _count: { select: { participants: true, subjects: true } }
+      }
+    };
+
+    const [activeInvestigations, watchedSubjects, pendingWarrants, myActivity, recentInvestigations, recentActivity] = await Promise.all([
+      this.prisma.investigation.count({ where: activeInvestigationWhere }),
+      canViewSubjects ? this.prisma.subject.count({ where: { status: SubjectStatus.UNDER_SURVEILLANCE } }) : Promise.resolve(0),
+      canManageWarrants ? this.prisma.warrant.count({ where: { status: WarrantStatus.PENDING } }) : Promise.resolve(0),
+      this.prisma.auditLog.count({ where: { userId: requester.id, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+      this.prisma.investigation.findMany(recentInvestigationsArgs),
       this.prisma.auditLog.findMany({
+        where: recentActivityWhere,
         take: 8,
         orderBy: { createdAt: "desc" },
         include: { user: { select: { displayName: true, role: true, avatar: true } } }

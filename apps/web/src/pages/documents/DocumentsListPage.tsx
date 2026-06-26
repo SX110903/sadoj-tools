@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { DOCUMENT_DEFINITIONS } from "../../components/document/documentDefinitions";
 import { StatusBadge } from "../../components/StatusBadge";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { DocumentStatus, OfficialDocument, RoleType } from "../../types/sadoj";
 import { shortDateTime } from "../../utils/labels";
@@ -67,7 +67,7 @@ export function DocumentsListPage(): JSX.Element {
     setFilters((current) => ({ ...current, [field]: value }));
   };
 
-  if (errorMessage !== null && documents === null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null && documents === null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (documents === null) return <SkeletonBlock height={360} />;
 
   return (

@@ -6,16 +6,16 @@ import { ImageUrlInput } from "../../components/common/ImageUrlInput";
 import { apiRequest } from "../../services/api";
 
 const ROLE_OPTIONS = [
-  ["FISCAL_GENERAL", "Fiscal General"],
-  ["FISCAL_ADJUNTO", "Fiscal General Adjunto"],
-  ["FISCAL_DIVISION", "Fiscal de División"],
-  ["FISCAL_SUPERIOR", "Fiscal Superior"],
-  ["FISCAL_JEFE", "Fiscal Jefe"],
-  ["FISCAL", "Fiscal"],
-  ["FISCAL_AUXILIAR", "Fiscal Auxiliar"],
-  ["INVESTIGADOR_SENIOR", "Investigador Senior"],
-  ["INVESTIGADOR_JUNIOR", "Investigador Junior"],
-  ["PASANTE", "Pasante"]
+  ["PASANTE", "Legal Intern"],
+  ["INVESTIGADOR_JUNIOR", "Legal Staff"],
+  ["INVESTIGADOR_SENIOR", "Assistant Prosecutor"],
+  ["FISCAL_AUXILIAR", "Prosecutor"],
+  ["FISCAL", "Senior Prosecutor"],
+  ["FISCAL_JEFE", "Deputy District Attorney"],
+  ["FISCAL_SUPERIOR", "Senior Deputy District Attorney"],
+  ["FISCAL_DIVISION", "District Attorney"],
+  ["FISCAL_ADJUNTO", "Deputy Attorney General"],
+  ["FISCAL_GENERAL", "Attorney General"]
 ] as const;
 
 interface CreateUserResponse {

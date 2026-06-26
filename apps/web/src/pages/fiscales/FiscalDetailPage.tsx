@@ -3,7 +3,7 @@ import { Pencil } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth, type UserSession } from "../../auth/auth-context";
 import { ImageUrlInput } from "../../components/common/ImageUrlInput";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { Sanction } from "../../types/sadoj";
 import { SanctionBadge, SeverityDots } from "../admin/SanctionsPage";
@@ -48,7 +48,7 @@ export function FiscalDetailPage(): JSX.Element {
     void loadSanctions();
   }, [accessToken, activeTab, id]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void loadFiscal()} />} />;
   if (fiscal === null) return <div className="page"><SkeletonBlock height={320} /></div>;
   const canEditAvatar = user?.id === fiscal.id || hasPermission("MANAGE_USERS");
 

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
 import { StatusBadge } from "../../components/StatusBadge";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
 import type { Warrant, WarrantStatus, WarrantType } from "../../types/sadoj";
 import { shortDateTime } from "../../utils/labels";
@@ -31,13 +31,14 @@ export function WarrantsListPage(): JSX.Element {
         return;
       }
 
+      setErrorMessage(null);
       setWarrants(result.data);
     };
 
     void load();
   }, [accessToken, status, type]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (warrants === null) return <SkeletonBlock height={320} />;
 
   return (
@@ -47,7 +48,7 @@ export function WarrantsListPage(): JSX.Element {
           <p className="eyebrow">Control judicial</p>
           <h1>Órdenes judiciales</h1>
         </div>
-        <Link className="primary-link" to="/ordenes/new">
+        <Link className="primary-link" to="/ordenes/nueva">
           <Plus size={16} />
           Nueva orden
         </Link>
@@ -69,7 +70,10 @@ export function WarrantsListPage(): JSX.Element {
         </label>
       </section>
       <section className="panel table-wrap">
-        <table>
+        {warrants.length === 0 ? (
+          <EmptyState title="No hay órdenes con esos filtros." action={<Link className="secondary-link" to="/ordenes/nueva">Crear orden</Link>} />
+        ) : (
+          <table>
           <thead>
             <tr>
               <th>Número</th>
@@ -94,7 +98,8 @@ export function WarrantsListPage(): JSX.Element {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        )}
       </section>
     </div>
   );

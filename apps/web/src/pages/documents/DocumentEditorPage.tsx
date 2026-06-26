@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useAuth } from "../../auth/auth-context";
 import { DOCUMENT_DEFINITIONS, DOCUMENT_TYPE_LABELS, isDocumentType } from "../../components/document/documentDefinitions";
 import { DocumentTemplateRenderer } from "../../components/document/DocumentTemplateRenderer";
-import { EmptyState, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../../components/ui";
 import { getInitialDocumentData, useDocumentForm, type FormDataMap } from "../../hooks/useDocumentForm";
 import { apiRequest } from "../../services/api";
 import type { DocumentType } from "../../types/documents";
@@ -40,13 +40,19 @@ export function DocumentEditorPage(): JSX.Element {
   const [document, setDocument] = useState<OfficialDocument | null>(null);
   const [documentLoaded, setDocumentLoaded] = useState(!isEditing);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    let isActive = true;
+
     const loadOptions = async (): Promise<void> => {
+      setErrorMessage(null);
       const [investigationsResult, subjectsResult] = await Promise.all([
         apiRequest<InvestigationListItem[]>("/api/investigations?limit=100", {}, accessToken),
         apiRequest<Subject[]>("/api/subjects?limit=100", {}, accessToken)
       ]);
+
+      if (!isActive) return;
 
       if (investigationsResult.error) {
         setErrorMessage(investigationsResult.message);
@@ -64,13 +70,21 @@ export function DocumentEditorPage(): JSX.Element {
     };
 
     void loadOptions();
-  }, [accessToken]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [accessToken, reloadKey]);
 
   useEffect(() => {
     if (!isEditing || id === undefined) return;
+    let isActive = true;
 
     const loadDocument = async (): Promise<void> => {
+      setDocumentLoaded(false);
       const result = await apiRequest<OfficialDocument>(`/api/documents/${id}`, {}, accessToken);
+
+      if (!isActive) return;
 
       if (result.error) {
         setErrorMessage(result.message);
@@ -84,9 +98,21 @@ export function DocumentEditorPage(): JSX.Element {
     };
 
     void loadDocument();
-  }, [accessToken, id, isEditing]);
+    return () => {
+      isActive = false;
+    };
+  }, [accessToken, id, isEditing, reloadKey]);
 
-  if (errorMessage !== null && isEditing && documentLoaded && document === null) return <EmptyState title={errorMessage} />;
+  const retryLoad = (): void => {
+    setErrorMessage(null);
+    setInvestigations(null);
+    setSubjects(null);
+    setDocument(null);
+    setDocumentLoaded(!isEditing);
+    setReloadKey((current) => current + 1);
+  };
+
+  if (errorMessage !== null && isEditing && documentLoaded && document === null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={retryLoad} />} />;
   if (!documentLoaded || investigations === null || subjects === null) return <SkeletonBlock height={520} />;
 
   return (
@@ -101,7 +127,12 @@ export function DocumentEditorPage(): JSX.Element {
           Volver
         </Link>
       </div>
-      {errorMessage !== null ? <p className="error-message no-print">{errorMessage}</p> : null}
+      {errorMessage !== null ? (
+        <div className="actions-row no-print">
+          <p className="error-message">{errorMessage}</p>
+          <RetryButton onRetry={retryLoad} />
+        </div>
+      ) : null}
       {selectedType === null ? (
         <TemplateSelector onSelect={setSelectedType} />
       ) : (

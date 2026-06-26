@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { reportClientError } from '../utils/clientDiagnostics';
 import type {
   DocumentType,
   InterrogatorioFormData,
@@ -509,8 +510,8 @@ export function useDocumentForm<T extends DocumentType>(documentType: T, options
       } else {
         setData(getInitialDocumentData(documentType));
       }
-    } catch (e) {
-      console.error('Error loading from localStorage:', e);
+    } catch (error) {
+      reportClientError('No se pudo cargar el autoguardado del documento.', error);
     }
     setIsLoaded(true);
   }, [autosaveKey, documentType, initialData]);
@@ -520,8 +521,8 @@ export function useDocumentForm<T extends DocumentType>(documentType: T, options
     try {
       if (autosaveKey === null) return;
       localStorage.setItem(autosaveKey, JSON.stringify(data));
-    } catch (e) {
-      console.error('Error saving to localStorage:', e);
+    } catch (error) {
+      reportClientError('No se pudo guardar el borrador del documento.', error);
     }
   }, [autosaveKey, data, isLoaded]);
 

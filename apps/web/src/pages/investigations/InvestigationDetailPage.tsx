@@ -8,7 +8,7 @@ import { IntelMapWorkspace } from "../../components/map/IntelMapWorkspace";
 import { NotesPanel } from "../../components/notes/NotesPanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { TimelinePanel } from "../../components/timeline/TimelinePanel";
-import { EmptyState, RoleBadge, SkeletonBlock } from "../../components/ui";
+import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { useAuth } from "../../auth/auth-context";
 import { apiRequest } from "../../services/api";
 import type { AccessLevel, DatalinkGraph as DatalinkGraphData, InvestigationDetail, OfficialDocument, PersonRef, Subject, Warrant } from "../../types/sadoj";
@@ -41,7 +41,14 @@ export function InvestigationDetailPage(): JSX.Element {
     void loadInvestigation();
   }, [id, accessToken]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) {
+    return (
+      <EmptyState
+        title={errorMessage}
+        action={<button type="button" className="secondary-link" onClick={() => void loadInvestigation()}>Reintentar</button>}
+      />
+    );
+  }
   if (id === undefined) return <EmptyState title="Investigación no encontrada." />;
   if (investigation === null) return <SkeletonBlock height={420} />;
 
@@ -65,7 +72,7 @@ export function InvestigationDetailPage(): JSX.Element {
             Nuevo documento
           </Link>
           {hasPermission("MANAGE_WARRANTS") ? (
-            <Link className="primary-link" to={`/ordenes/new?investigationId=${investigation.id}`}>
+            <Link className="primary-link" to={`/ordenes/nueva?investigationId=${investigation.id}`}>
               <Plus size={16} />
               Nueva orden
             </Link>
@@ -114,7 +121,7 @@ function GeneralTab({ investigation, onChanged }: { investigation: Investigation
     if (!hasPermission("SHARE_INVESTIGATION")) return;
 
     const loadUsers = async (): Promise<void> => {
-      const result = await apiRequest<PersonRef[]>("/api/users?limit=100", {}, accessToken);
+      const result = await apiRequest<PersonRef[]>("/api/users/mentions?limit=100", {}, accessToken);
 
       if (!result.error) {
         setUsers(result.data);
@@ -320,24 +327,32 @@ function SubjectsTab({ investigation, onChanged }: { investigation: Investigatio
 function InvestigationWarrantsTab({ investigationId }: { investigationId: string }): JSX.Element {
   const { accessToken } = useAuth();
   const [warrants, setWarrants] = useState<Warrant[] | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const loadWarrants = async (): Promise<void> => {
       const result = await apiRequest<Warrant[]>(`/api/warrants?investigationId=${investigationId}&limit=100`, {}, accessToken);
 
-      if (!result.error) setWarrants(result.data);
+      if (result.error) {
+        setErrorMessage(result.message);
+        return;
+      }
+
+      setErrorMessage(null);
+      setWarrants(result.data);
     };
 
     void loadWarrants();
   }, [accessToken, investigationId]);
 
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (warrants === null) return <SkeletonBlock height={220} />;
 
   return (
     <section className="panel table-wrap">
       <div className="actions-row">
         <h2>Órdenes judiciales</h2>
-        <Link className="primary-link" to={`/ordenes/new?investigationId=${investigationId}`}>Nueva orden</Link>
+        <Link className="primary-link" to={`/ordenes/nueva?investigationId=${investigationId}`}>Nueva orden</Link>
       </div>
       <table>
         <thead>
@@ -391,7 +406,7 @@ function InvestigationDocumentsTab({ investigationId }: { investigationId: strin
     void loadDocuments();
   }, [accessToken, investigationId]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (documents === null) return <SkeletonBlock height={260} />;
 
   return (
@@ -455,7 +470,7 @@ function InvestigationDatalinkTab({ investigationId }: { investigationId: string
     void loadGraph();
   }, [accessToken, investigationId]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (graph === null) return <SkeletonBlock height={520} />;
 
   return <DatalinkGraph graph={graph} />;

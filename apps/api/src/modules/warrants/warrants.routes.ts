@@ -19,8 +19,8 @@ export const warrantsRoutes: FastifyPluginAsync = async (app) => {
   app.get("/:id/report", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_WARRANTS])] }, getWarrantReportController);
   app.post("/:id/report", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_WARRANTS])] }, createWarrantReportController);
   app.get("/:id", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_WARRANTS])] }, getWarrantController);
-  app.patch("/:id/approve", { preHandler: [app.authenticate] }, approveWarrantController);
-  app.patch("/:id/reject", { preHandler: [app.authenticate] }, rejectWarrantController);
+  app.patch("/:id/approve", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_WARRANTS])] }, approveWarrantController);
+  app.patch("/:id/reject", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_WARRANTS])] }, rejectWarrantController);
   app.patch("/:id/execute", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_WARRANTS])] }, executeWarrantController);
   app.post("/:id/files", { preHandler: [app.authenticate, requirePermission([Permission.UPLOAD_FILES])] }, uploadWarrantFileController);
 };

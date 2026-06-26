@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth, type Permission } from "../auth/auth-context";
+import { ForbiddenPage } from "../pages/errors/ForbiddenPage";
 import { SkeletonBlock } from "./ui";
 
 export function ProtectedRoute({ permission }: { permission?: Permission }): JSX.Element {
@@ -20,14 +21,8 @@ export function ProtectedRoute({ permission }: { permission?: Permission }): JSX
   }
 
   if (permission !== undefined && !hasPermission(permission)) {
-    return (
-      <div className="page">
-        <h1>Sin permisos</h1>
-        <p className="muted">No tienes permisos para acceder a esta sección.</p>
-      </div>
-    );
+    return <ForbiddenPage />;
   }
 
   return <Outlet />;
 }
-

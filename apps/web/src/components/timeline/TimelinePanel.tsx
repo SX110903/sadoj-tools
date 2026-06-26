@@ -5,7 +5,7 @@ import { useAuth } from "../../auth/auth-context";
 import { apiRequest } from "../../services/api";
 import type { TimelineEvent, TimelineEventType } from "../../types/sadoj";
 import { shortDateTime } from "../../utils/labels";
-import { EmptyState, SkeletonBlock } from "../ui";
+import { EmptyState, RetryButton, SkeletonBlock } from "../ui";
 
 interface TimelinePanelProps {
   endpoint: string;
@@ -33,7 +33,7 @@ export function TimelinePanel({ endpoint }: TimelinePanelProps): JSX.Element {
     void loadTimeline();
   }, [accessToken, endpoint]);
 
-  if (errorMessage !== null) return <EmptyState title={errorMessage} />;
+  if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton />} />;
   if (events === null) return <SkeletonBlock height={360} />;
   if (events.length === 0) return <EmptyState title="No hay eventos registrados." />;
 

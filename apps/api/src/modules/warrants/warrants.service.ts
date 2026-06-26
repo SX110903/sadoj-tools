@@ -1,5 +1,6 @@
 import { hasPermission, Permission, ROLE_LEVEL, RoleType } from "@sadoj/shared";
 import { AppError } from "../../shared/errors/AppError";
+import { isUniqueConstraintError } from "../../shared/prisma-errors";
 import {
   InvestigationStatus,
   IncidentOrigin,
@@ -38,6 +39,7 @@ const WARRANT_ABBREVIATIONS: Readonly<Record<WarrantType, string>> = {
 
 const VALID_INVESTIGATION_STATUSES = new Set<InvestigationStatus>([InvestigationStatus.OPEN, InvestigationStatus.ACTIVE]);
 const PROPERTY_TARGET_TYPES = new Set<WarrantType>([WarrantType.ALLANAMIENTO, WarrantType.INCAUTACION]);
+const PROPERTY_INCIDENT_SEQUENCE_RETRY_LIMIT = 3;
 
 export class WarrantsService {
   public constructor(private readonly prisma: PrismaClient) {}
@@ -262,33 +264,45 @@ export class WarrantsService {
       throw new AppError(409, "WARRANT_REPORT_EXISTS", "La orden ya tiene un informe registrado.");
     }
 
-    return this.prisma.$transaction(async (transaction) => {
-      const raidSequence = await this.nextPropertyIncidentSequence(transaction, warrant.propertyId);
-      const report = await transaction.warrantReport.create({
-        data: {
-          warrantId: id,
-          result: data.result,
-          raidSequence,
-          findings: data.findings,
-          evidence: data.evidence ?? null,
-          persons: data.persons ?? null,
-          participatingAgencies: data.participatingAgencies ?? null,
-          notes: data.notes ?? null,
-          createdById: requester.id
-        },
-        include: {
-          createdBy: { select: { id: true, displayName: true, role: true, avatar: true } },
-          files: {
-            include: { uploadedBy: { select: { id: true, displayName: true, role: true, avatar: true } } },
-            orderBy: { createdAt: "desc" }
-          }
+    for (let attempt = 1; attempt <= PROPERTY_INCIDENT_SEQUENCE_RETRY_LIMIT; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(async (transaction) => {
+          const raidSequence = await this.nextPropertyIncidentSequence(transaction, warrant.propertyId);
+          const report = await transaction.warrantReport.create({
+            data: {
+              warrantId: id,
+              result: data.result,
+              raidSequence,
+              findings: data.findings,
+              evidence: data.evidence ?? null,
+              persons: data.persons ?? null,
+              participatingAgencies: data.participatingAgencies ?? null,
+              notes: data.notes ?? null,
+              createdById: requester.id
+            },
+            include: {
+              createdBy: { select: { id: true, displayName: true, role: true, avatar: true } },
+              files: {
+                include: { uploadedBy: { select: { id: true, displayName: true, role: true, avatar: true } } },
+                orderBy: { createdAt: "desc" }
+              }
+            }
+          });
+
+          await this.syncPropertyIncidentFromReport(transaction, warrant, report, requester.id, raidSequence);
+
+          return report;
+        });
+      } catch (error) {
+        if (attempt < PROPERTY_INCIDENT_SEQUENCE_RETRY_LIMIT && isUniqueConstraintError(error, ["propertyId", "sequence"])) {
+          continue;
         }
-      });
 
-      await this.syncPropertyIncidentFromReport(transaction, warrant, report, requester.id, raidSequence);
+        throw error;
+      }
+    }
 
-      return report;
-    });
+    throw new AppError(409, "PROPERTY_INCIDENT_SEQUENCE_CONFLICT", "No se pudo asignar un numero de allanamiento. Intentalo de nuevo.");
   }
 
   private includeRelations(): Prisma.WarrantInclude {
@@ -425,7 +439,7 @@ export class WarrantsService {
 
   private ensureCanReview(requester: AuthenticatedUser): void {
     if (ROLE_LEVEL[requester.role] < ROLE_LEVEL[RoleType.FISCAL_DIVISION]) {
-      throw new AppError(403, "FORBIDDEN", "Solo un Fiscal de División o superior puede revisar órdenes.");
+      throw new AppError(403, "FORBIDDEN", "Solo un District Attorney o superior puede revisar órdenes.");
     }
   }
 
