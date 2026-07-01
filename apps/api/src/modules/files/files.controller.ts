@@ -1,18 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { AppError } from "../../shared/errors/AppError";
 import { getAuthenticatedUser } from "../../shared/utils/authenticated-user";
-import { FileParamsSchema, FilesQuerySchema, FileTargetTypeSchema, FileUploadQuerySchema } from "./files.schema";
+import { FileParamsSchema, FilesQuerySchema, FileUploadQuerySchema } from "./files.schema";
 import { FilesService } from "./files.service";
-
-interface MultipartFieldValue {
-  value?: unknown;
-}
-
-function readMultipartField(fields: Record<string, unknown>, key: string): string | undefined {
-  const field = fields[key] as MultipartFieldValue | MultipartFieldValue[] | undefined;
-  const value = Array.isArray(field) ? field[0]?.value : field?.value;
-  return typeof value === "string" ? value : undefined;
-}
 
 export async function listFilesController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const query = FilesQuerySchema.parse(request.query);
@@ -24,6 +14,7 @@ export async function listFilesController(request: FastifyRequest, reply: Fastif
 }
 
 export async function uploadFileController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const query = FileUploadQuerySchema.parse(request.query);
   const requester = getAuthenticatedUser(request);
   const file = await request.file();
 
@@ -31,19 +22,9 @@ export async function uploadFileController(request: FastifyRequest, reply: Fasti
     throw new AppError(400, "FILE_REQUIRED", "Debes adjuntar un archivo.");
   }
 
-  const query = FileUploadQuerySchema.partial().parse(request.query);
-  const fields = file.fields as Record<string, unknown>;
-  const rawTargetType = readMultipartField(fields, "targetType") ?? query.targetType;
-  const rawTargetId = readMultipartField(fields, "targetId") ?? query.targetId;
-
-  if (rawTargetType === undefined || rawTargetId === undefined) {
-    throw new AppError(400, "MISSING_TARGET", "Se requiere targetType y targetId.");
-  }
-
-  const targetType = FileTargetTypeSchema.parse(rawTargetType);
   const buffer = await file.toBuffer();
   const service = new FilesService(request.server.prisma);
-  const result = await service.upload(buffer, file.filename, file.mimetype, requester, { type: targetType, id: rawTargetId });
+  const result = await service.upload(buffer, file.filename, file.mimetype, requester, { type: query.targetType, id: query.targetId });
 
   reply.status(201).send({ error: false, data: result, message: "Archivo subido correctamente." });
 }

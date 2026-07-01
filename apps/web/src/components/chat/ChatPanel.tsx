@@ -1,9 +1,10 @@
-import { Paperclip, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { useAuth } from "../../auth/auth-context";
 import { MentionTextarea } from "../mentions/MentionTextarea";
 import { SecureImage } from "../common/SecureImage";
+import { FileDropzone } from "../files/FileDropzone";
 import { apiRequest } from "../../services/api";
 import type { CaseFile, ChatMessage } from "../../types/sadoj";
 import { shortDateTime } from "../../utils/labels";
@@ -41,12 +42,10 @@ const SOCKET_URL = "http://127.0.0.1:3000/chat";
 export function ChatPanel({ roomId, investigationId }: ChatPanelProps): JSX.Element {
   const { accessToken, refreshUser, user } = useAuth();
   const socketRef = useRef<ChatSocket | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [content, setContent] = useState("");
   const [mentions, setMentions] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [typingLabel, setTypingLabel] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -108,13 +107,8 @@ export function ChatPanel({ roomId, investigationId }: ChatPanelProps): JSX.Elem
     };
   }, [accessToken, roomId]);
 
-  const handleSelectFile = (event: React.ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0];
-
-    if (file === undefined) return;
-
-    setSelectedFile(file);
-    setPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
+  const handleSelectFile = (files: File[]): void => {
+    setSelectedFile(files[0] ?? null);
   };
 
   const uploadSelectedFile = async (): Promise<{ fileId?: string; fileName?: string }> => {
@@ -151,12 +145,7 @@ export function ChatPanel({ roomId, investigationId }: ChatPanelProps): JSX.Elem
     setContent("");
     setMentions([]);
     setSelectedFile(null);
-    setPreviewUrl(null);
     setIsSending(false);
-
-    if (fileInputRef.current !== null) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const oldestMessage = messages[0];
@@ -193,12 +182,18 @@ export function ChatPanel({ roomId, investigationId }: ChatPanelProps): JSX.Elem
         {typingLabel !== null ? <p className="typing-indicator">{typingLabel}</p> : null}
       </div>
       {errorMessage !== null ? <p className="error-message">{errorMessage}</p> : null}
-      {previewUrl !== null ? <img className="chat-preview" src={previewUrl} alt="Adjunto seleccionado" /> : null}
+      {investigationId !== undefined ? (
+        <FileDropzone
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          allowedTypes={["image/jpeg", "image/png", "image/webp", "image/gif"]}
+          files={selectedFile === null ? [] : [selectedFile]}
+          helperText="JPG, PNG, WebP o GIF. Máximo 10 MB."
+          isUploading={isSending && selectedFile !== null}
+          onClear={() => setSelectedFile(null)}
+          onFilesSelected={handleSelectFile}
+        />
+      ) : null}
       <form className="chat-form" onSubmit={(event) => void handleSend(event)}>
-        <button type="button" className="icon-button" aria-label="Adjuntar imagen" onClick={() => fileInputRef.current?.click()}>
-          <Paperclip size={17} />
-        </button>
-        <input ref={fileInputRef} hidden type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleSelectFile} />
         <MentionTextarea
           value={content}
           mentions={mentions}

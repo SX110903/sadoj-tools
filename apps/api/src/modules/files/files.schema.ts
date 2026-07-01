@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const FileTargetTypeSchema = z.enum(["investigation", "subject", "warrant", "note", "warrantReport", "propertyIncident"]);
+export const FileTargetTypeSchema = z.enum(["investigation", "subject", "warrant", "note", "warrantReport", "propertyIncident", "evidenceBoard", "academyContent"]);
 
 export const FileUploadQuerySchema = z.object({
   targetType: FileTargetTypeSchema,

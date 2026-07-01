@@ -1,13 +1,13 @@
 'use client';
 
-import { useRef } from 'react';
 import type { ReconocimientoFacialFormData, FotoAdjunta } from '../../../types/documents';
 import { SectionHeader } from '../SectionHeader';
 import { LabeledInput } from '../LabeledInput';
 import { LabeledTextarea } from '../LabeledTextarea';
 import { FundamentoLegal } from '../FundamentoLegal';
 import { SignatureBlock } from '../SignatureBlock';
-import { Plus, Trash2, Upload, ImageIcon, ShieldAlert } from 'lucide-react';
+import { Trash2, ImageIcon, ShieldAlert } from 'lucide-react';
+import { FileDropzone } from '../../files/FileDropzone';
 
 const agenciasLEA = [
   'LSPD — Los Santos Police Department',
@@ -52,13 +52,11 @@ interface ReconocimientoFacialTemplateProps {
 }
 
 export function ReconocimientoFacialTemplate({ data, onChange }: ReconocimientoFacialTemplateProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const updateField = <K extends keyof ReconocimientoFacialFormData>(
     field: K,
     value: ReconocimientoFacialFormData[K]
   ) => {
-    onChange(((current: ReconocimientoFacialFormData) => ({ ...current, [field]: value })) as unknown as ReconocimientoFacialFormData);
+    onChange({ ...data, [field]: value });
   };
 
   // --- Checkbox helpers ---
@@ -72,15 +70,15 @@ export function ReconocimientoFacialTemplate({ data, onChange }: ReconocimientoF
   };
 
   // --- Foto upload ---
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
+  const handleFilesSelected = (files: File[]) => {
+    files.forEach((file, index) => {
       if (!file.type.startsWith('image/')) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
+      reader.onload = () => {
+        const dataUrl = typeof reader.result === 'string' ? reader.result : null;
+        if (dataUrl === null) return;
         const nuevaFoto: FotoAdjunta = {
-          id: `foto-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          id: `foto-${Date.now()}-${index}`,
           nombre: file.name,
           dataUrl,
           descripcion: '',
@@ -90,8 +88,6 @@ export function ReconocimientoFacialTemplate({ data, onChange }: ReconocimientoF
       };
       reader.readAsDataURL(file);
     });
-    // Reset input so same file can be re-uploaded if needed
-    e.target.value = '';
   };
 
   const updateFoto = (id: string, field: keyof FotoAdjunta, value: string) => {
@@ -228,26 +224,14 @@ export function ReconocimientoFacialTemplate({ data, onChange }: ReconocimientoF
           {/* Upload area */}
           <div
             className="border-2 border-dashed border-[#1c2537]/40 rounded p-6 text-center cursor-pointer hover:border-[#1c2537] hover:bg-[#1c2537]/5 transition-colors print:hidden"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const dt = e.dataTransfer;
-              const fakeEvent = { target: { files: dt.files, value: '' }, preventDefault: () => {} } as unknown as React.ChangeEvent<HTMLInputElement>;
-              handleFileChange(fakeEvent);
-            }}
           >
-            <Upload className="w-8 h-8 text-[#1c2537]/50 mx-auto mb-2" />
-            <p className="text-sm font-bold text-[#1c2537]">Subir fotografias</p>
-            <p className="text-xs text-gray-500 mt-1">Haz clic o arrastra imagenes aqui — JPG, PNG, WEBP</p>
-            <p className="text-xs text-gray-400 mt-1">Puedes subir multiples fotos a la vez</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
+            <FileDropzone
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              allowedTypes={['image/jpeg', 'image/png', 'image/webp', 'image/gif']}
+              files={[]}
+              helperText="JPG, PNG, WebP o GIF. Máximo 10 MB. Puedes subir múltiples fotos."
               multiple
-              onChange={handleFileChange}
-              className="hidden"
+              onFilesSelected={handleFilesSelected}
             />
           </div>
 

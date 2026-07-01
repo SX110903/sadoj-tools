@@ -1,10 +1,10 @@
 import { extname } from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
-import { hasPermission, Permission } from "@sadoj/shared";
+import { hasPermission, Permission, ROLE_LEVEL, RoleType } from "@sadoj/shared";
 import { env } from "../../config/env";
 import { AppError } from "../../shared/errors/AppError";
-import { Prisma, type PrismaClient } from "../../shared/prisma";
+import { BoardScope, Prisma, type PrismaClient } from "../../shared/prisma";
 import { StorageService } from "../../shared/storage/storage.service";
 import { canSeeConfidentialNotes } from "../../shared/utils/role";
 import type { AuthenticatedUser } from "../../types/fastify";
@@ -40,7 +40,9 @@ const ENTITY_FOLDER: Readonly<Record<FileTargetType, string>> = {
   warrant: "warrants",
   note: "notes",
   warrantReport: "warrant-reports",
-  propertyIncident: "property-incidents"
+  propertyIncident: "property-incidents",
+  evidenceBoard: "evidence-boards",
+  academyContent: "academy"
 };
 
 export class FilesService {
@@ -72,11 +74,9 @@ export class FilesService {
     const objectName = `${ENTITY_FOLDER[target.type]}/${target.id}/${randomUUID()}.${processed.extension}`;
     const storedFile = await this.storage.uploadBuffer(objectName, processed.buffer, processed.mimeType);
     const thumbnailUrl = await this.uploadThumbnail(target, processed);
-    const fileData = this.buildFileData(storedFile.filename, originalName, storedFile.mimeType, storedFile.size, storedFile.url, uploadedBy.id, target);
-    const file = await this.prisma.file.create({
-      data: fileData,
-      include: { uploadedBy: { select: { id: true, displayName: true, role: true, avatar: true } } }
-    });
+    const safeOriginalName = this.sanitizeOriginalName(originalName);
+    const fileData = this.buildFileData(storedFile.filename, safeOriginalName, storedFile.mimeType, storedFile.size, storedFile.url, uploadedBy.id, target);
+    const file = await this.createFileRecord(fileData, target);
 
     return thumbnailUrl === undefined ? { file } : { file, thumbnailUrl };
   }
@@ -177,6 +177,7 @@ export class FilesService {
     if (target.type === "note") data.noteId = target.id;
     if (target.type === "warrantReport") data.warrantReportId = target.id;
     if (target.type === "propertyIncident") data.propertyIncidentId = target.id;
+    if (target.type === "evidenceBoard") data.evidenceBoardId = target.id;
 
     return data;
   }
@@ -187,7 +188,28 @@ export class FilesService {
     if (target.type === "warrant") return { warrantId: target.id };
     if (target.type === "warrantReport") return { warrantReportId: target.id };
     if (target.type === "propertyIncident") return { propertyIncidentId: target.id };
+    if (target.type === "evidenceBoard") return { evidenceBoardId: target.id };
+    if (target.type === "academyContent") return { academyContent: { is: { id: target.id } } };
     return { noteId: target.id };
+  }
+
+  private async createFileRecord(data: Prisma.FileUncheckedCreateInput, target: UploadTarget): Promise<unknown> {
+    const include = { uploadedBy: { select: { id: true, displayName: true, role: true, avatar: true } } } as const;
+    if (target.type !== "academyContent") {
+      return this.prisma.file.create({ data, include });
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const file = await transaction.file.create({ data, include });
+      const linked = await transaction.academyContent.updateMany({
+        where: { id: target.id, fileId: null },
+        data: { fileId: file.id }
+      });
+      if (linked.count !== 1) {
+        throw new AppError(409, "ACADEMY_FILE_EXISTS", "Este contenido ya tiene un documento asociado.");
+      }
+      return file;
+    });
   }
 
   private extensionForMimeType(mimeType: string): string {
@@ -196,6 +218,12 @@ export class FilesService {
 
     const extension = extname(mimeType).replace(".", "");
     return extension.length > 0 ? extension : "bin";
+  }
+
+  private sanitizeOriginalName(originalName: string): string {
+    const baseName = originalName.split(/[\\/]/).pop() ?? "archivo";
+    const sanitized = baseName.replace(/[^A-Za-z0-9._ -]/g, "_").slice(0, 180).trim();
+    return sanitized.length > 0 ? sanitized : "archivo";
   }
 
   private async ensureTargetAccess(target: UploadTarget, requester: AuthenticatedUser, propertyAccess: "read" | "write"): Promise<void> {
@@ -239,6 +267,16 @@ export class FilesService {
       }
 
       await ensurePropertyAccess(this.prisma, requester, incident.propertyId, propertyAccess);
+      return;
+    }
+
+    if (target.type === "evidenceBoard") {
+      await this.ensureEvidenceBoardAccess(target.id, requester, propertyAccess);
+      return;
+    }
+
+    if (target.type === "academyContent") {
+      await this.ensureAcademyContentAccess(target.id, requester, propertyAccess);
       return;
     }
 
@@ -289,8 +327,90 @@ export class FilesService {
       return;
     }
 
+    if (file.evidenceBoardId !== null && file.evidenceBoardId !== undefined) {
+      await this.ensureEvidenceBoardAccess(file.evidenceBoardId, requester, "read");
+      return;
+    }
+
+    if (file.id !== undefined) {
+      const academyContent = await this.prisma.academyContent.findFirst({ where: { fileId: file.id }, select: { id: true } });
+      if (academyContent !== null) {
+        await this.ensureAcademyContentAccess(academyContent.id, requester, "read");
+        return;
+      }
+    }
+
     if (file.noteId !== null && file.noteId !== undefined) {
       await this.ensureNoteAccess(file.noteId, requester);
+    }
+  }
+
+  private async ensureEvidenceBoardAccess(boardId: string, requester: AuthenticatedUser, access: "read" | "write"): Promise<void> {
+    const board = await this.prisma.evidenceBoard.findUnique({
+      where: { id: boardId },
+      include: {
+        investigation: { include: { participants: { where: { userId: requester.id } } } },
+        subject: { select: { id: true } }
+      }
+    });
+
+    if (board === null) {
+      throw new AppError(404, "EVIDENCE_BOARD_NOT_FOUND", "No se encontró la pizarra solicitada.");
+    }
+
+    if (board.scope === BoardScope.GLOBAL) {
+      if (board.ownerId !== requester.id) {
+        throw new AppError(403, "FORBIDDEN", "No tienes permisos sobre esta pizarra global.");
+      }
+
+      return;
+    }
+
+    if (board.scope === BoardScope.SUBJECT) {
+      if (board.subjectId === null) {
+        throw new AppError(404, "SUBJECT_NOT_FOUND", "No se encontró el sujeto asociado a la pizarra.");
+      }
+
+      await this.ensureSubjectAccess(board.subjectId, requester);
+
+      if (access === "write" && !hasPermission(requester.role, Permission.MANAGE_SUBJECTS)) {
+        throw new AppError(403, "FORBIDDEN", "No tienes permisos para modificar la pizarra del sujeto.");
+      }
+
+      return;
+    }
+
+    if (board.investigation === null || board.investigationId === null) {
+      throw new AppError(404, "INVESTIGATION_NOT_FOUND", "No se encontró la investigación asociada a la pizarra.");
+    }
+
+    await this.ensureInvestigationAccess(board.investigationId, requester);
+
+    if (access === "write" && !hasPermission(requester.role, Permission.EDIT_INVESTIGATION)) {
+      throw new AppError(403, "FORBIDDEN", "No tienes permisos para modificar la pizarra de la investigación.");
+    }
+  }
+
+  private async ensureAcademyContentAccess(contentId: string, requester: AuthenticatedUser, access: "read" | "write"): Promise<void> {
+    const content = await this.prisma.academyContent.findUnique({
+      where: { id: contentId },
+      select: { id: true, fileId: true, publishedById: true }
+    });
+    if (content === null) {
+      throw new AppError(404, "ACADEMY_CONTENT_NOT_FOUND", "No se encontró el contenido de Academia solicitado.");
+    }
+    if (!hasPermission(requester.role, Permission.VIEW_ACADEMY)) {
+      throw new AppError(403, "FORBIDDEN", "No tienes acceso a los documentos de Academia.");
+    }
+    if (access === "write") {
+      const canPublish = hasPermission(requester.role, Permission.PUBLISH_ACADEMY);
+      const canEditOthers = ROLE_LEVEL[requester.role] >= ROLE_LEVEL[RoleType.FISCAL_DIVISION];
+      if (!canPublish || (content.publishedById !== requester.id && !canEditOthers)) {
+        throw new AppError(403, "FORBIDDEN", "No tienes permisos para adjuntar documentos a este contenido.");
+      }
+      if (content.fileId !== null) {
+        throw new AppError(409, "ACADEMY_FILE_EXISTS", "Este contenido ya tiene un documento asociado.");
+      }
     }
   }
 
