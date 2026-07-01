@@ -38,6 +38,15 @@ export async function getUserController(request: FastifyRequest, reply: FastifyR
   reply.send({ error: false, data: user });
 }
 
+export async function listUserInvestigationsController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const params = UserParamsSchema.parse(request.params);
+  const requester = getAuthenticatedUser(request);
+  const service = new UsersService(request.server.prisma);
+  const investigations = await service.findUserInvestigations(params.id, requester);
+
+  reply.send({ error: false, data: investigations });
+}
+
 export async function updateUserController(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const params = UserParamsSchema.parse(request.params);
   const body = UpdateUserSchema.parse(request.body);

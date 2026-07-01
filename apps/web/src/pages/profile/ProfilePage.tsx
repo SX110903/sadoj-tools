@@ -3,15 +3,26 @@ import { useMemo, useState } from "react";
 import { Pencil } from "lucide-react";
 import { useAuth, type UserSession } from "../../auth/auth-context";
 import { ImageUrlInput } from "../../components/common/ImageUrlInput";
+import { DecorationsSection } from "../../components/decorations/DecorationsSection";
+import { ExamResultsSection } from "../../components/exams/ExamResultsSection";
+import { MyTasksSection } from "../../components/profile/MyTasksSection";
+import { UserInvestigationsSection } from "../../components/profile/UserInvestigationsSection";
+import { UserSanctionsSection } from "../../components/profile/UserSanctionsSection";
 import { RoleBadge } from "../../components/ui";
+import { useUserSummaryStats } from "../../hooks/useUserSummaryStats";
 import { apiRequest } from "../../services/api";
+
+const PROFILE_TABS = ["Resumen", "Mis tareas", "Investigaciones", "Condecoraciones", "Sanciones", "Exámenes"] as const;
+type ProfileTab = (typeof PROFILE_TABS)[number];
 
 export function ProfilePage(): JSX.Element {
   const { user, accessToken, refreshUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<ProfileTab>("Resumen");
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const initial = useMemo(() => user?.displayName.slice(0, 1) ?? "S", [user]);
+  const stats = useUserSummaryStats(user?.id ?? null);
 
   if (user === null) {
     return <div className="page"><p>No hay sesión activa.</p></div>;
@@ -75,17 +86,38 @@ export function ProfilePage(): JSX.Element {
           <RoleBadge role={user.role} />
         </div>
       </section>
-      <form className="panel form-grid" onSubmit={(event) => void handleProfileSubmit(event)}>
-        <label>Nombre visible<input name="displayName" defaultValue={user.displayName} /></label>
-        <label>Email<input name="email" type="email" defaultValue={user.email ?? ""} /></label>
-        <label>División<input name="division" defaultValue={user.division ?? ""} /></label>
-        <label className="span-full">Bio<textarea name="bio" defaultValue={user.bio ?? ""} /></label>
-        {message !== null ? <p className="hint">{message}</p> : null}
-        <button className="primary-button" type="submit">Guardar cambios</button>
-      </form>
-      <section className="panel">
-        <h2>Cambiar Contraseña</h2>
-        <p className="muted">Esta acción se habilitará cuando el módulo de seguridad de perfil esté completo.</p>
+      <section className="profile-stat-strip">
+        <span><strong>{stats?.investigations ?? "—"}</strong>Investigaciones</span>
+        <span><strong>{stats?.decorations ?? "—"}</strong>Condecoraciones</span>
+        <span><strong>{stats?.activeSanctions ?? "—"}</strong>Sanciones activas</span>
+      </section>
+      <section className="tabs-shell">
+        <div className="tab-list">
+          {PROFILE_TABS.map((tab) => (
+            <button key={tab} type="button" className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{tab}</button>
+          ))}
+        </div>
+        {activeTab === "Resumen" ? (
+          <>
+            <form className="panel form-grid" onSubmit={(event) => void handleProfileSubmit(event)}>
+              <label>Nombre visible<input name="displayName" defaultValue={user.displayName} /></label>
+              <label>Email<input name="email" type="email" defaultValue={user.email ?? ""} /></label>
+              <label>División<input name="division" defaultValue={user.division ?? ""} /></label>
+              <label className="span-full">Bio<textarea name="bio" defaultValue={user.bio ?? ""} /></label>
+              {message !== null ? <p className="hint">{message}</p> : null}
+              <button className="primary-button" type="submit">Guardar cambios</button>
+            </form>
+            <section className="panel">
+              <h2>Cambiar Contraseña</h2>
+              <p className="muted">Esta acción se habilitará cuando el módulo de seguridad de perfil esté completo.</p>
+            </section>
+          </>
+        ) : null}
+        {activeTab === "Mis tareas" ? <MyTasksSection /> : null}
+        {activeTab === "Investigaciones" ? <UserInvestigationsSection userId={user.id} /> : null}
+        {activeTab === "Condecoraciones" ? <DecorationsSection userId={user.id} /> : null}
+        {activeTab === "Sanciones" ? <UserSanctionsSection userId={user.id} /> : null}
+        {activeTab === "Exámenes" ? <ExamResultsSection /> : null}
       </section>
       {avatarDialogOpen ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">

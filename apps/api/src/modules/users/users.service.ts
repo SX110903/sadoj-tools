@@ -101,6 +101,32 @@ export class UsersService {
     return this.findExistingById(id);
   }
 
+  public async findUserInvestigations(userId: string, requester: AuthenticatedUser): Promise<unknown[]> {
+    const canViewOthers = hasPermission(requester.role, Permission.MANAGE_USERS) || hasPermission(requester.role, Permission.VIEW_ALL_INVESTIGATIONS);
+
+    if (requester.id !== userId && !canViewOthers) {
+      throw new AppError(403, "FORBIDDEN", "No tienes permisos para ver estas investigaciones.");
+    }
+
+    return this.prisma.investigation.findMany({
+      where: {
+        OR: [{ leadFiscalId: userId }, { participants: { some: { userId } } }]
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        caseNumber: true,
+        title: true,
+        status: true,
+        priority: true,
+        type: true,
+        leadFiscalId: true,
+        updatedAt: true,
+        _count: { select: { participants: true, subjects: true } }
+      }
+    });
+  }
+
   private async findExistingById(id: string): Promise<UserSafe> {
     const user = await this.prisma.user.findUnique({ where: { id } });
 

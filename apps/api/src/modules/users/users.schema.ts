@@ -1,13 +1,12 @@
 import { RoleType } from "@sadoj/shared";
 import { z } from "zod";
+import { isSafeImageUrl } from "../../shared/utils/url";
 
 const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
-const IMAGE_URL_REGEX = /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i;
 
-export const ImageUrlSchema = z.string().trim().url().refine(
-  (url) => IMAGE_URL_REGEX.test(url),
-  { message: "Debe ser un enlace directo a una imagen (jpg, jpeg, png, webp o gif)." }
-);
+export const ImageUrlSchema = z.string().trim().refine(isSafeImageUrl, {
+  message: "Debe ser un enlace HTTP(S) directo a una imagen (jpg, jpeg, png, webp o gif)."
+});
 
 export const UserParamsSchema = z.object({
   id: z.string().min(1)

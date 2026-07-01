@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { ClipboardList, Pencil } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth, type UserSession } from "../../auth/auth-context";
+import { UserAcademyRecordSection } from "../../components/academy/UserAcademyRecordSection";
 import { ImageUrlInput } from "../../components/common/ImageUrlInput";
+import { DecorationsSection } from "../../components/decorations/DecorationsSection";
+import { ExamResultsSection } from "../../components/exams/ExamResultsSection";
+import { UserInvestigationsSection } from "../../components/profile/UserInvestigationsSection";
+import { UserSanctionsSection } from "../../components/profile/UserSanctionsSection";
+import { AssignTaskDialog } from "../../components/tasks/AssignTaskDialog";
 import { EmptyState, RetryButton, RoleBadge, SkeletonBlock } from "../../components/ui";
 import { apiRequest } from "../../services/api";
-import type { Sanction } from "../../types/sadoj";
-import { SanctionBadge, SeverityDots } from "../admin/SanctionsPage";
 import { formatHubDate } from "../../utils/labels";
 
-const FISCAL_TABS = ["Perfil", "Investigaciones", "Notas", "Sanciones"] as const;
+const FISCAL_TABS = ["Perfil", "Investigaciones", "Condecoraciones", "Notas", "Sanciones", "Academia", "Exámenes"] as const;
 type FiscalTab = (typeof FISCAL_TABS)[number];
 
 export function FiscalDetailPage(): JSX.Element {
@@ -21,7 +25,7 @@ export function FiscalDetailPage(): JSX.Element {
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [activeTab, setActiveTab] = useState<FiscalTab>("Perfil");
-  const [sanctions, setSanctions] = useState<Sanction[] | null>(null);
+  const [assignTaskOpen, setAssignTaskOpen] = useState(false);
 
   const loadFiscal = async (): Promise<void> => {
     if (id === undefined) return;
@@ -37,16 +41,6 @@ export function FiscalDetailPage(): JSX.Element {
   useEffect(() => {
     void loadFiscal();
   }, [accessToken, id]);
-
-  useEffect(() => {
-    const loadSanctions = async (): Promise<void> => {
-      if (id === undefined || activeTab !== "Sanciones") return;
-      const result = await apiRequest<Sanction[]>(`/api/sanctions/by-user/${id}`, {}, accessToken);
-      setSanctions(result.error ? [] : result.data);
-    };
-
-    void loadSanctions();
-  }, [accessToken, activeTab, id]);
 
   if (errorMessage !== null) return <EmptyState title={errorMessage} action={<RetryButton onRetry={() => void loadFiscal()} />} />;
   if (fiscal === null) return <div className="page"><SkeletonBlock height={320} /></div>;
@@ -84,6 +78,14 @@ export function FiscalDetailPage(): JSX.Element {
           <h1>{fiscal.displayName}</h1>
           <RoleBadge role={fiscal.role} />
           {message !== null ? <p className="hint">{message}</p> : null}
+          {user?.id !== fiscal.id ? (
+            <div className="actions-row">
+              <button type="button" className="primary-link" onClick={() => setAssignTaskOpen(true)}>
+                <ClipboardList size={16} />
+                Asignar tarea
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
       <section className="tabs-shell">
@@ -110,37 +112,11 @@ export function FiscalDetailPage(): JSX.Element {
           ) : null}
         </div>
         ) : null}
-        {activeTab === "Sanciones" ? (
-          <section className="panel stack">
-            <div className="actions-row">
-              <div>
-                <p className="eyebrow">Historial disciplinario</p>
-                <h2>Sanciones</h2>
-              </div>
-              {hasPermission("MANAGE_SANCTIONS") ? <Link className="primary-link" to={`/admin/sanciones?userId=${fiscal.id}&new=1`}>Emitir desde aquí</Link> : null}
-            </div>
-            {sanctions === null ? <SkeletonBlock height={160} /> : null}
-            {sanctions !== null && sanctions.length === 0 ? <EmptyState title="No hay sanciones registradas para este fiscal." /> : null}
-            {sanctions !== null && sanctions.length > 0 ? (
-              <div className="compact-list">
-                {sanctions.map((sanction) => (
-                  <article className="compact-row" key={sanction.id}>
-                    <div className="actions-row">
-                      <SanctionBadge type={sanction.type} />
-                      <span className={sanction.active ? "badge status-active" : "badge status-inactive"}>{sanction.active ? "Activa" : "Resuelta"}</span>
-                    </div>
-                    <p>{sanction.description}</p>
-                    <div className="badge-row">
-                      <SeverityDots value={sanction.severity} />
-                      <span className="muted">Emitida por {sanction.issuedBy.displayName} · {formatHubDate(sanction.createdAt)}</span>
-                    </div>
-                    {sanction.resolvedNotes !== null ? <p className="muted">Resolución: {sanction.resolvedNotes}</p> : null}
-                  </article>
-                ))}
-              </div>
-            ) : null}
-          </section>
-        ) : null}
+        {activeTab === "Investigaciones" ? <UserInvestigationsSection userId={fiscal.id} /> : null}
+        {activeTab === "Condecoraciones" ? <DecorationsSection userId={fiscal.id} /> : null}
+        {activeTab === "Sanciones" ? <UserSanctionsSection userId={fiscal.id} /> : null}
+        {activeTab === "Academia" ? <UserAcademyRecordSection userId={fiscal.id} /> : null}
+        {activeTab === "Exámenes" ? <ExamResultsSection userId={fiscal.id} title="Resultados de exámenes" /> : null}
       </section>
       {avatarDialogOpen ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -159,6 +135,14 @@ export function FiscalDetailPage(): JSX.Element {
             </div>
           </section>
         </div>
+      ) : null}
+      {assignTaskOpen ? (
+        <AssignTaskDialog
+          assigneeId={fiscal.id}
+          assigneeName={fiscal.displayName}
+          onClose={() => setAssignTaskOpen(false)}
+          onAssigned={() => setMessage("Tarea asignada correctamente.")}
+        />
       ) : null}
     </div>
   );

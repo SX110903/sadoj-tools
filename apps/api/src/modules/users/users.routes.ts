@@ -1,5 +1,11 @@
 import { Permission } from "@sadoj/shared";
 import type { FastifyPluginAsync } from "fastify";
+import {
+  awardUserDecorationController,
+  listUserDecorationsController,
+  revokeUserDecorationController
+} from "../decorations/decorations.controller";
+import { listUserExamResultsController } from "../exams/exams.controller";
 import { createUserNoteController, listUserNotesController } from "../notes/notes.controller";
 import { requirePermission } from "../../shared/middleware/rbac.middleware";
 import {
@@ -7,6 +13,7 @@ import {
   createUserController,
   deactivateUserController,
   getUserController,
+  listUserInvestigationsController,
   listUsersController,
   mentionUsersController,
   updateUserController,
@@ -24,4 +31,9 @@ export const usersRoutes: FastifyPluginAsync = async (app) => {
   app.patch("/:id/avatar", { preHandler: [app.authenticate] }, updateUserAvatarController);
   app.get("/:id/notes", { preHandler: [app.authenticate, requirePermission([Permission.VIEW_NOTES])] }, listUserNotesController);
   app.post("/:id/notes", { preHandler: [app.authenticate, requirePermission([Permission.ADD_NOTES])] }, createUserNoteController);
+  app.get("/:id/investigations", { preHandler: [app.authenticate] }, listUserInvestigationsController);
+  app.get("/:id/exam-results", { preHandler: [app.authenticate] }, listUserExamResultsController);
+  app.get("/:id/decorations", { preHandler: [app.authenticate] }, listUserDecorationsController);
+  app.post("/:id/decorations", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_USERS])] }, awardUserDecorationController);
+  app.delete("/:id/decorations/:awardId", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_USERS])] }, revokeUserDecorationController);
 };
