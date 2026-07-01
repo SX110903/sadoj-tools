@@ -1,0 +1,3 @@
+# Normaliza saltos de línea. Los scripts de shell SIEMPRE en LF para no romper en contenedores.
+* text=auto
+*.sh text eol=lf

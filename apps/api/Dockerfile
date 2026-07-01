@@ -27,7 +27,8 @@ COPY --from=build /app/package.json /app/pnpm-workspace.yaml ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/shared ./packages/shared
 COPY --from=build /app/apps/api ./apps/api
+COPY --chmod=0755 apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 WORKDIR /app/apps/api
 EXPOSE 3000
 USER node
-CMD ["node", "dist/server.js"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
