@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { LOS_SANTOS_DISTRICTS, ROLE_PERMISSIONS, RoleType } from "../../../packages/shared/src";
-import { PrismaClient, type Permission as PrismaPermission, type RoleType as PrismaRoleType } from "../src/shared/prisma";
+import { Prisma, PrismaClient, type Permission as PrismaPermission, type RoleType as PrismaRoleType } from "../src/shared/prisma";
+import { EXAM_SEED } from "./exam-seed-data";
 
 const prisma = new PrismaClient();
 const ADMIN_PASSWORD = "Admin1234!";
@@ -62,10 +63,30 @@ async function seedRolePermissions(): Promise<void> {
   }
 }
 
+async function seedExams(): Promise<void> {
+  const admin = await prisma.user.findUnique({ where: { username: "admin" }, select: { id: true } });
+  if (admin === null) return;
+
+  for (const exam of EXAM_SEED) {
+    const existing = await prisma.exam.findFirst({ where: { title: exam.title }, select: { id: true } });
+    if (existing !== null) continue;
+
+    await prisma.exam.create({
+      data: {
+        title: exam.title,
+        description: exam.description,
+        questions: exam.questions as unknown as Prisma.InputJsonValue,
+        createdById: admin.id
+      }
+    });
+  }
+}
+
 async function main(): Promise<void> {
   await seedAdmin();
   await seedZones();
   await seedRolePermissions();
+  await seedExams();
 }
 
 main()

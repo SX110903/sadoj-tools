@@ -40,6 +40,10 @@ enum Permission {
   MANAGE_WARRANTS
   VIEW_AUDIT_LOG
   SYSTEM_CONFIG
+  MANAGE_HR
+  PUBLISH_ACADEMY
+  MANAGE_ACADEMY
+  VIEW_ACADEMY
 }
 
 enum InvestigationStatus {
@@ -187,6 +191,8 @@ enum NotificationType {
   SANCTION_ISSUED
   MENTION
   NOTE_ADDED
+  DECORATION_AWARDED
+  TASK_ASSIGNED
 }
 
 enum PropertyIncidentType {
@@ -209,6 +215,24 @@ enum IncidentResult {
 enum IncidentOrigin {
   MANUAL
   WARRANT
+}
+
+enum BoardScope {
+  SUBJECT
+  INVESTIGATION
+  GLOBAL
+}
+
+enum BoardCardType {
+  EVIDENCE
+  NOTE
+  ENTITY
+}
+
+enum BoardStepStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
 }
 
 model User {
@@ -243,15 +267,141 @@ model User {
   mapElements           MapElement[]
   organizationsCreated  CriminalOrganization[]
   warrantReports        WarrantReport[]            @relation("WarrantReportCreatedBy")
-  createdProperties     Property[]                  @relation("PropertyCreatedBy")
-  propertyIncidents     PropertyIncident[]          @relation("PropertyIncidentCreatedBy")
-  propertyMemberships   PropertyMember[]            @relation("PropertyMemberUser")
-  propertyMembersAdded  PropertyMember[]            @relation("PropertyMemberAddedBy")
+  createdProperties     Property[]                 @relation("PropertyCreatedBy")
+  propertyIncidents     PropertyIncident[]         @relation("PropertyIncidentCreatedBy")
+  propertyMemberships   PropertyMember[]           @relation("PropertyMemberUser")
+  propertyMembersAdded  PropertyMember[]           @relation("PropertyMemberAddedBy")
   notificationsReceived Notification[]             @relation("NotifRecipient")
   notificationsActed    Notification[]             @relation("NotifActor")
+  ownedEvidenceBoards   EvidenceBoard[]            @relation("EvidenceBoardOwner")
+  boardCardsCreated     BoardCard[]                @relation("BoardCardCreatedBy")
+  boardStepsCreated     BoardStep[]                @relation("BoardStepCreatedBy")
+  decorations           DecorationAward[]          @relation("UserDecorations")
+  decorationsAwarded    DecorationAward[]          @relation("DecorationsAwarded")
+  tasksAssigned         Task[]                     @relation("TasksAssigned")
+  tasksCreated          Task[]                     @relation("TasksCreated")
+  examsCreated          Exam[]                     @relation("ExamsCreated")
+  examsAssigned         ExamAssignment[]           @relation("ExamsAssigned")
+  examsOpened           ExamAssignment[]           @relation("ExamsOpened")
+  examAttempts          ExamAttempt[]              @relation("ExamAttempts")
+  candidatesCreated     Candidate[]                @relation("CandidatesCreated")
+  approvedCandidate     Candidate?                 @relation("CandidateApprovedUser")
+  interviewsConducted   Interview[]                @relation("InterviewsConducted")
+  academyPublished      AcademyContent[]           @relation("AcademyPublished")
+  academyClasses        AcademyClass[]             @relation("AcademyInstructor")
+  classAttendance       ClassAttendance[]          @relation("ClassAttendance")
+  attendanceMarked      ClassAttendance[]          @relation("AttendanceMarked")
 
   @@index([role])
   @@index([active])
+}
+
+enum CandidateStatus {
+  PENDING
+  INTERVIEWED
+  APPROVED
+  REJECTED
+}
+
+enum InterviewResult {
+  PENDING
+  PASSED
+  FAILED
+}
+
+model Candidate {
+  id             String          @id @default(cuid())
+  fullName       String
+  contact        String?
+  notes          String?         @db.Text
+  status         CandidateStatus @default(PENDING)
+  createdById    String
+  createdBy      User            @relation("CandidatesCreated", fields: [createdById], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  interview      Interview?
+  approvedUserId String?         @unique
+  approvedUser   User?           @relation("CandidateApprovedUser", fields: [approvedUserId], references: [id])
+
+  @@index([status])
+  @@index([createdById])
+}
+
+model Interview {
+  id            String          @id @default(cuid())
+  candidateId   String          @unique
+  candidate     Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  interviewerId String
+  interviewer   User            @relation("InterviewsConducted", fields: [interviewerId], references: [id])
+  scheduledAt   DateTime?
+  conductedAt   DateTime?
+  score         Int?
+  result        InterviewResult @default(PENDING)
+  feedback      String?         @db.Text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([interviewerId])
+  @@index([result])
+}
+
+enum AcademyContentType {
+  NOTE
+  VIDEO
+  DOCUMENT
+  REGULATION
+}
+
+model AcademyContent {
+  id            String             @id @default(cuid())
+  type          AcademyContentType
+  title         String
+  body          String?            @db.Text
+  videoUrl      String?
+  fileId        String?            @unique
+  file          File?              @relation("AcademyContentFile", fields: [fileId], references: [id], onDelete: SetNull)
+  classId       String?
+  class         AcademyClass?      @relation(fields: [classId], references: [id], onDelete: SetNull)
+  publishedById String
+  publishedBy   User               @relation("AcademyPublished", fields: [publishedById], references: [id])
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([type])
+  @@index([classId])
+  @@index([publishedById])
+}
+
+model AcademyClass {
+  id           String            @id @default(cuid())
+  number       Int               @unique
+  title        String
+  description  String?           @db.Text
+  scheduledAt  DateTime?
+  instructorId String?
+  instructor   User?             @relation("AcademyInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  contents     AcademyContent[]
+  attendance   ClassAttendance[]
+
+  @@index([instructorId])
+}
+
+model ClassAttendance {
+  id         String       @id @default(cuid())
+  classId    String
+  class      AcademyClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation("ClassAttendance", fields: [userId], references: [id], onDelete: Cascade)
+  present    Boolean      @default(true)
+  markedById String
+  markedBy   User         @relation("AttendanceMarked", fields: [markedById], references: [id])
+  markedAt   DateTime     @default(now())
+
+  @@unique([classId, userId])
+  @@index([userId])
+  @@index([markedById])
 }
 
 model Notification {
@@ -273,36 +423,39 @@ model Notification {
 }
 
 model Investigation {
-  id           String                     @id @default(cuid())
-  caseNumber   String                     @unique
-  title        String
-  description  String                     @db.Text
-  status       InvestigationStatus        @default(OPEN)
-  priority     InvestigationPriority      @default(MEDIUM)
-  type         InvestigationType
-  legalBasis   String?                    @db.Text
-  startDate    DateTime                   @default(now())
-  closeDate    DateTime?
-  leadFiscalId String
-  leadFiscal   User                       @relation("LeadFiscal", fields: [leadFiscalId], references: [id])
-  createdAt    DateTime                   @default(now())
-  updatedAt    DateTime                   @updatedAt
-  participants InvestigationParticipant[]
-  subjects     InvestigationSubject[]
-  notes        Note[]
-  files        File[]
-  warrants     Warrant[]
-  chatRoom     ChatRoom?
-  mapDrawings  MapDrawing[]
-  mapElements  MapElement[]
-  documents    Document[]
-  auditLogs    AuditLog[]
+  id                String                     @id @default(cuid())
+  caseNumber        String                     @unique
+  title             String
+  description       String                     @db.Text
+  status            InvestigationStatus        @default(OPEN)
+  priority          InvestigationPriority      @default(MEDIUM)
+  type              InvestigationType
+  legalBasis        String?                    @db.Text
+  startDate         DateTime                   @default(now())
+  closeDate         DateTime?
+  leadFiscalId      String
+  leadFiscal        User                       @relation("LeadFiscal", fields: [leadFiscalId], references: [id])
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  participants      InvestigationParticipant[]
+  subjects          InvestigationSubject[]
+  notes             Note[]
+  files             File[]
+  warrants          Warrant[]
+  chatRoom          ChatRoom?
+  mapDrawings       MapDrawing[]
+  mapElements       MapElement[]
+  documents         Document[]
+  auditLogs         AuditLog[]
   propertyIncidents PropertyIncident[]
+  evidenceBoard     EvidenceBoard?
+  tasks             Task[]
 
   @@index([status])
   @@index([leadFiscalId])
   @@index([type])
   @@index([priority])
+  @@index([updatedAt])
 }
 
 model InvestigationParticipant {
@@ -366,6 +519,7 @@ model Subject {
   files                File[]
   documents            Document[]
   mapElements          MapElementSubject[]
+  evidenceBoard        EvidenceBoard?
 
   @@index([status])
   @@index([lastName])
@@ -373,6 +527,7 @@ model Subject {
   @@index([organization])
   @@index([organizationId])
   @@index([createdById])
+  @@index([createdAt])
 }
 
 model Vehicle {
@@ -390,7 +545,7 @@ model Vehicle {
 }
 
 model Property {
-  id          String            @id @default(cuid())
+  id          String             @id @default(cuid())
   address     String
   type        PropertyType
   zone        String?
@@ -398,13 +553,13 @@ model Property {
   gtaX        Float?
   gtaY        Float?
   createdById String?
-  createdBy   User?             @relation("PropertyCreatedBy", fields: [createdById], references: [id])
+  createdBy   User?              @relation("PropertyCreatedBy", fields: [createdById], references: [id])
   subjects    SubjectProperty[]
   mapElements MapElement[]
   warrants    Warrant[]
   incidents   PropertyIncident[]
   members     PropertyMember[]
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime           @default(now())
 
   @@index([address])
   @@index([type])
@@ -556,30 +711,30 @@ model Note {
 }
 
 model Warrant {
-  id              String         @id @default(cuid())
-  warrantNumber   String         @unique
-  type            WarrantType
-  title           String
-  description     String         @db.Text
-  location        String
-  justification   String         @db.Text
-  legalBasis      String         @db.Text
-  status          WarrantStatus  @default(PENDING)
-  investigationId String
-  investigation   Investigation  @relation(fields: [investigationId], references: [id])
-  propertyId      String?
-  property        Property?      @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  requestedById   String
-  requestedBy     User           @relation("WarrantRequestedBy", fields: [requestedById], references: [id])
-  approvedById    String?
-  approvedBy      User?          @relation("WarrantApprovedBy", fields: [approvedById], references: [id])
-  approvedAt      DateTime?
-  rejectionReason String?
-  executedAt      DateTime?
-  executionNotes  String?        @db.Text
-  createdAt       DateTime       @default(now())
-  files           File[]
-  warrantReport   WarrantReport?
+  id               String            @id @default(cuid())
+  warrantNumber    String            @unique
+  type             WarrantType
+  title            String
+  description      String            @db.Text
+  location         String
+  justification    String            @db.Text
+  legalBasis       String            @db.Text
+  status           WarrantStatus     @default(PENDING)
+  investigationId  String
+  investigation    Investigation     @relation(fields: [investigationId], references: [id])
+  propertyId       String?
+  property         Property?         @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  requestedById    String
+  requestedBy      User              @relation("WarrantRequestedBy", fields: [requestedById], references: [id])
+  approvedById     String?
+  approvedBy       User?             @relation("WarrantApprovedBy", fields: [approvedById], references: [id])
+  approvedAt       DateTime?
+  rejectionReason  String?
+  executedAt       DateTime?
+  executionNotes   String?           @db.Text
+  createdAt        DateTime          @default(now())
+  files            File[]
+  warrantReport    WarrantReport?
   propertyIncident PropertyIncident?
 
   @@index([status])
@@ -608,6 +763,7 @@ model Sanction {
   @@index([issuedById])
   @@index([active])
   @@index([type])
+  @@index([createdAt])
 }
 
 model Document {
@@ -641,29 +797,34 @@ model Document {
 }
 
 model File {
-  id              String         @id @default(cuid())
-  filename        String
-  originalName    String
-  mimeType        String
-  size            Int
-  url             String
-  uploadedById    String
-  uploadedBy      User           @relation(fields: [uploadedById], references: [id])
-  investigationId String?
-  investigation   Investigation? @relation(fields: [investigationId], references: [id])
-  noteId          String?
-  note            Note?          @relation(fields: [noteId], references: [id])
-  warrantId       String?
-  warrant         Warrant?       @relation(fields: [warrantId], references: [id])
-  subjectId       String?
-  subject         Subject?       @relation(fields: [subjectId], references: [id])
-  messageId       String?        @unique
-  message         Message?       @relation(fields: [messageId], references: [id])
-  warrantReportId String?
-  warrantReport   WarrantReport? @relation(fields: [warrantReportId], references: [id])
+  id                 String            @id @default(cuid())
+  filename           String
+  originalName       String
+  mimeType           String
+  size               Int
+  url                String
+  uploadedById       String
+  uploadedBy         User              @relation(fields: [uploadedById], references: [id])
+  investigationId    String?
+  investigation      Investigation?    @relation(fields: [investigationId], references: [id])
+  noteId             String?
+  note               Note?             @relation(fields: [noteId], references: [id])
+  warrantId          String?
+  warrant            Warrant?          @relation(fields: [warrantId], references: [id])
+  subjectId          String?
+  subject            Subject?          @relation(fields: [subjectId], references: [id])
+  messageId          String?           @unique
+  message            Message?          @relation(fields: [messageId], references: [id])
+  warrantReportId    String?
+  warrantReport      WarrantReport?    @relation(fields: [warrantReportId], references: [id])
   propertyIncidentId String?
   propertyIncident   PropertyIncident? @relation(fields: [propertyIncidentId], references: [id])
-  createdAt       DateTime       @default(now())
+  evidenceBoardId    String?
+  evidenceBoard      EvidenceBoard?    @relation(fields: [evidenceBoardId], references: [id], onDelete: Cascade)
+  boardCards         BoardCard[]
+  boardSteps         BoardStep[]
+  academyContent     AcademyContent?   @relation("AcademyContentFile")
+  createdAt          DateTime          @default(now())
 
   @@index([uploadedById])
   @@index([investigationId])
@@ -671,7 +832,108 @@ model File {
   @@index([warrantId])
   @@index([warrantReportId])
   @@index([propertyIncidentId])
+  @@index([evidenceBoardId])
   @@index([subjectId])
+  @@index([createdAt])
+}
+
+model EvidenceBoard {
+  id              String            @id @default(cuid())
+  scope           BoardScope
+  title           String
+  ownerId         String
+  owner           User              @relation("EvidenceBoardOwner", fields: [ownerId], references: [id])
+  subjectId       String?           @unique
+  subject         Subject?          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  investigationId String?           @unique
+  investigation   Investigation?    @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  cards           BoardCard[]
+  steps           BoardStep[]
+  connections     BoardConnection[]
+  files           File[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([scope])
+  @@index([ownerId])
+  @@index([subjectId])
+  @@index([investigationId])
+}
+
+model BoardCard {
+  id                  String            @id @default(cuid())
+  boardId             String
+  board               EvidenceBoard     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  type                BoardCardType
+  title               String
+  text                String?           @db.Text
+  color               String            @default("#f8fafc")
+  x                   Float             @default(120)
+  y                   Float             @default(120)
+  width               Float             @default(220)
+  height              Float             @default(170)
+  rotation            Float             @default(0)
+  zIndex              Int               @default(0)
+  fileId              String?
+  file                File?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  imageUrl            String?
+  eventDate           DateTime?
+  entityType          String?
+  entityId            String?
+  createdById         String?
+  createdBy           User?             @relation("BoardCardCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  outgoingConnections BoardConnection[] @relation("BoardConnectionFrom")
+  incomingConnections BoardConnection[] @relation("BoardConnectionTo")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([boardId])
+  @@index([type])
+  @@index([fileId])
+  @@index([entityType, entityId])
+  @@index([eventDate])
+  @@index([createdById])
+}
+
+model BoardStep {
+  id          String          @id @default(cuid())
+  boardId     String
+  board       EvidenceBoard   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  order       Int
+  title       String
+  description String?         @db.Text
+  status      BoardStepStatus @default(PENDING)
+  fileId      String?
+  file        File?           @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  imageUrl    String?
+  createdById String?
+  createdBy   User?           @relation("BoardStepCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([boardId, order])
+  @@index([boardId])
+  @@index([fileId])
+  @@index([createdById])
+}
+
+model BoardConnection {
+  id         String        @id @default(cuid())
+  boardId    String
+  board      EvidenceBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  fromCardId String
+  fromCard   BoardCard     @relation("BoardConnectionFrom", fields: [fromCardId], references: [id], onDelete: Cascade)
+  toCardId   String
+  toCard     BoardCard     @relation("BoardConnectionTo", fields: [toCardId], references: [id], onDelete: Cascade)
+  label      String?
+  color      String        @default("#dc2626")
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([boardId, fromCardId, toCardId])
+  @@index([boardId])
+  @@index([fromCardId])
+  @@index([toCardId])
 }
 
 model MapDrawing {
@@ -828,4 +1090,133 @@ model RolePermission {
   @@unique([role, permission])
   @@index([role])
   @@index([permission])
+}
+
+enum DecorationTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+model Decoration {
+  id          String            @id @default(cuid())
+  name        String
+  description String
+  icon        String?
+  color       String?           @default("#d4a843")
+  tier        DecorationTier    @default(BRONZE)
+  createdAt   DateTime          @default(now())
+  awards      DecorationAward[]
+
+  @@index([tier])
+}
+
+model DecorationAward {
+  id           String     @id @default(cuid())
+  decorationId String
+  decoration   Decoration @relation(fields: [decorationId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation("UserDecorations", fields: [userId], references: [id], onDelete: Cascade)
+  awardedById  String
+  awardedBy    User       @relation("DecorationsAwarded", fields: [awardedById], references: [id])
+  reason       String?    @db.Text
+  awardedAt    DateTime   @default(now())
+
+  @@index([userId])
+  @@index([decorationId])
+  @@index([awardedById])
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Task {
+  id              String         @id @default(cuid())
+  title           String
+  description     String?        @db.Text
+  status          TaskStatus     @default(PENDING)
+  priority        TaskPriority   @default(NORMAL)
+  assignedToId    String
+  assignedTo      User           @relation("TasksAssigned", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedById    String
+  assignedBy      User           @relation("TasksCreated", fields: [assignedById], references: [id])
+  investigationId String?
+  investigation   Investigation? @relation(fields: [investigationId], references: [id], onDelete: SetNull)
+  dueDate         DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([assignedToId, status])
+  @@index([assignedById])
+  @@index([investigationId])
+}
+
+enum ExamAssignmentStatus {
+  OPEN
+  CLOSED
+  COMPLETED
+}
+
+model Exam {
+  id          String           @id @default(cuid())
+  title       String
+  description String?          @db.Text
+  durationMin Int              @default(20)
+  passScore   Int              @default(70)
+  questions   Json
+  isActive    Boolean          @default(true)
+  createdById String
+  createdBy   User             @relation("ExamsCreated", fields: [createdById], references: [id])
+  createdAt   DateTime         @default(now())
+  assignments ExamAssignment[]
+
+  @@index([isActive])
+  @@index([createdById])
+}
+
+model ExamAssignment {
+  id         String               @id @default(cuid())
+  examId     String
+  exam       Exam                 @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User                 @relation("ExamsAssigned", fields: [userId], references: [id], onDelete: Cascade)
+  status     ExamAssignmentStatus @default(OPEN)
+  openedById String
+  openedBy   User                 @relation("ExamsOpened", fields: [openedById], references: [id])
+  openedAt   DateTime             @default(now())
+  closedAt   DateTime?
+  attempt    ExamAttempt?
+
+  @@unique([examId, userId])
+  @@index([userId, status])
+}
+
+model ExamAttempt {
+  id             String         @id @default(cuid())
+  assignmentId   String         @unique
+  assignment     ExamAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User           @relation("ExamAttempts", fields: [userId], references: [id], onDelete: Cascade)
+  answers        Json
+  score          Int
+  correctCount   Int
+  totalQuestions Int
+  passed         Boolean
+  startedAt      DateTime
+  submittedAt    DateTime       @default(now())
+
+  @@index([userId])
 }
