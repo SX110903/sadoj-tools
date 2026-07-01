@@ -177,7 +177,9 @@ function notificationTypeLabel(type: NotificationType): string {
     WARRANT_REJECTED: "Orden rechazada",
     SANCTION_ISSUED: "SanciÃ³n",
     MENTION: "MenciÃ³n",
-    NOTE_ADDED: "Nota nueva"
+    NOTE_ADDED: "Nota nueva",
+    DECORATION_AWARDED: "Condecoración",
+    TASK_ASSIGNED: "Tarea asignada"
   };
 
   return labels[type];
