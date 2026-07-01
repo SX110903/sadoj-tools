@@ -41,4 +41,4 @@ Endpoints de Fase 1:
 - `GET /api/auth/me`
 
 El refresh token se almacena en cookie `httpOnly`, `SameSite=Strict`; Redis guarda refresh tokens activos y blacklist de access tokens revocados.
-
+WWWWWW

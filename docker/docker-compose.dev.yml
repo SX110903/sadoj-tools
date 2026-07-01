@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: sadoj
       POSTGRES_PASSWORD: sadoj_dev_password
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - sadoj_pgdata_dev:/var/lib/postgresql/data
     healthcheck:
@@ -20,7 +20,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     volumes:
       - sadoj_redisdata_dev:/data
 
@@ -32,8 +32,8 @@ services:
       MINIO_ROOT_USER: sadoj_access
       MINIO_ROOT_PASSWORD: sadoj_secret_key
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - sadoj_minio_dev:/data
 
