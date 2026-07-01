@@ -54,7 +54,7 @@ export function TimelinePanel({ endpoint }: TimelinePanelProps): JSX.Element {
                 event.href.startsWith("/") ? (
                   <Link to={event.href}>Abrir registro</Link>
                 ) : (
-                  <a href={event.href} target="_blank" rel="noreferrer">
+                  <a href={event.href} target="_blank" rel="noopener noreferrer">
                     Abrir archivo
                   </a>
                 )

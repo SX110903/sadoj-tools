@@ -7,7 +7,7 @@ import {
 } from "../decorations/decorations.controller";
 import { listUserExamResultsController } from "../exams/exams.controller";
 import { createUserNoteController, listUserNotesController } from "../notes/notes.controller";
-import { requirePermission } from "../../shared/middleware/rbac.middleware";
+import { requireOperationalAccess, requirePermission } from "../../shared/middleware/rbac.middleware";
 import {
   changeUserRoleController,
   createUserController,
@@ -22,7 +22,7 @@ import {
 
 export const usersRoutes: FastifyPluginAsync = async (app) => {
   app.get("/", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_USERS])] }, listUsersController);
-  app.get("/mentions", { preHandler: [app.authenticate] }, mentionUsersController);
+  app.get("/mentions", { preHandler: [app.authenticate, requireOperationalAccess] }, mentionUsersController);
   app.post("/", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_USERS])] }, createUserController);
   app.get("/:id", { preHandler: [app.authenticate] }, getUserController);
   app.put("/:id", { preHandler: [app.authenticate] }, updateUserController);

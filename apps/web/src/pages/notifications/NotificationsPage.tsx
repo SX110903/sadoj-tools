@@ -18,7 +18,9 @@ const NOTIFICATION_TYPES: readonly NotificationType[] = [
   "WARRANT_REJECTED",
   "SANCTION_ISSUED",
   "MENTION",
-  "NOTE_ADDED"
+  "NOTE_ADDED",
+  "DECORATION_AWARDED",
+  "TASK_ASSIGNED"
 ];
 
 type ReadFilter = "all" | "unread";
@@ -92,14 +94,14 @@ export function NotificationsPage(): JSX.Element {
         </div>
         <button type="button" className="secondary-link" onClick={() => void markAllRead()}>
           <CheckCheck size={16} />
-          Marcar todas como leÃ­das
+          Marcar todas como leídas
         </button>
       </div>
 
       <section className="panel notification-filters">
         <div className="segmented-control">
           <button type="button" className={readFilter === "all" ? "active" : ""} onClick={() => setReadFilter("all")}>Todas</button>
-          <button type="button" className={readFilter === "unread" ? "active" : ""} onClick={() => setReadFilter("unread")}>No leÃ­das</button>
+          <button type="button" className={readFilter === "unread" ? "active" : ""} onClick={() => setReadFilter("unread")}>No leídas</button>
         </div>
         <label>
           Tipo
@@ -132,11 +134,11 @@ export function NotificationsPage(): JSX.Element {
                   </button>
                   <div className="toolbar">
                     {!notification.read ? (
-                      <button type="button" className="icon-button" aria-label="Marcar leÃ­da" onClick={() => void markRead(notification)}>
+                      <button type="button" className="icon-button" aria-label="Marcar leída" onClick={() => void markRead(notification)}>
                         <Check size={16} />
                       </button>
                     ) : null}
-                    <button type="button" className="icon-button" aria-label="Eliminar notificaciÃ³n" onClick={() => void deleteNotification(notification)}>
+                    <button type="button" className="icon-button" aria-label="Eliminar notificación" onClick={() => void deleteNotification(notification)}>
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -169,14 +171,14 @@ function groupNotifications(notifications: readonly NotificationItem[]): Array<{
 
 function notificationTypeLabel(type: NotificationType): string {
   const labels: Readonly<Record<NotificationType, string>> = {
-    INVESTIGATION_ASSIGNED: "AsignaciÃ³n",
-    INVESTIGATION_UPDATED: "InvestigaciÃ³n actualizada",
+    INVESTIGATION_ASSIGNED: "Asignación",
+    INVESTIGATION_UPDATED: "Investigación actualizada",
     DOCUMENT_SIGNED: "Documento firmado",
     DOCUMENT_TO_SIGN: "Firma pendiente",
     WARRANT_APPROVED: "Orden aprobada",
     WARRANT_REJECTED: "Orden rechazada",
-    SANCTION_ISSUED: "SanciÃ³n",
-    MENTION: "MenciÃ³n",
+    SANCTION_ISSUED: "Sanción",
+    MENTION: "Mención",
     NOTE_ADDED: "Nota nueva",
     DECORATION_AWARDED: "Condecoración",
     TASK_ASSIGNED: "Tarea asignada"

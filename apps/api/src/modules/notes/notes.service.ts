@@ -74,7 +74,7 @@ export class NotesService {
           actorId: requester.id,
           type: NotificationType.NOTE_ADDED,
           title: "Nota nueva",
-          message: `${note.author.displayName} aÃ±adiÃ³ una nota en ${participants.caseNumber}.`,
+          message: `${note.author.displayName} añadió una nota en ${participants.caseNumber}.`,
           link,
           meta: { noteId: note.id, investigationId: target.id }
         });
@@ -86,7 +86,7 @@ export class NotesService {
       actorId: requester.id,
       type: NotificationType.MENTION,
       title: "Te mencionaron",
-      message: `${note.author.displayName} te mencionÃ³ en una nota.`,
+      message: `${note.author.displayName} te mencionó en una nota.`,
       link,
       meta: { noteId: note.id, targetType: target.type, targetId: target.id }
     });

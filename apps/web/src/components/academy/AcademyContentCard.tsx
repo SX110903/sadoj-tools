@@ -22,10 +22,10 @@ export function AcademyContentCard({ content, canDelete, onDelete }: { content: 
         {canDelete ? <button type="button" className="icon-button" aria-label={`Eliminar ${content.title}`} onClick={() => void onDelete(content.id)}><Trash2 size={15} /></button> : null}
       </div>
       {content.body !== null ? <p className="academy-content-body">{content.body}</p> : null}
-      {content.videoUrl !== null ? <a className="secondary-link align-self-start" href={content.videoUrl} target="_blank" rel="noreferrer"><PlayCircle size={16} />Abrir vídeo<ExternalLink size={14} /></a> : null}
+      {content.videoUrl !== null ? <a className="secondary-link align-self-start" href={content.videoUrl} target="_blank" rel="noopener noreferrer"><PlayCircle size={16} />Abrir vídeo<ExternalLink size={14} /></a> : null}
       {content.file !== null && content.file.mimeType.startsWith("image/") ? <SecureImage fileId={content.file.id} alt={content.title} className="academy-content-image" /> : null}
       {content.file !== null ? (
-        <a className={signedUrl === null ? "secondary-link disabled" : "secondary-link"} href={signedUrl ?? undefined} target="_blank" rel="noreferrer" aria-disabled={signedUrl === null}>
+        <a className={signedUrl === null ? "secondary-link disabled" : "secondary-link"} href={signedUrl ?? undefined} target="_blank" rel="noopener noreferrer" aria-disabled={signedUrl === null}>
           <FileText size={16} />{isLoading ? "Preparando documento..." : content.file.originalName}<span className="muted">{formatBytes(content.file.size)}</span>
         </a>
       ) : null}

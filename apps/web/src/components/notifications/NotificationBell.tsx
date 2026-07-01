@@ -150,7 +150,7 @@ export function NotificationBell(): JSX.Element {
                   <small>{notification.message}</small>
                   <em>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: es })}</em>
                 </span>
-                {!notification.read ? <i aria-label="No leÃ­da" /> : null}
+                {!notification.read ? <i aria-label="No leída" /> : null}
               </button>
             ))}
           </div>

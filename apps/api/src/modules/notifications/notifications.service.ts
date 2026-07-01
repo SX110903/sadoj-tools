@@ -117,7 +117,7 @@ export class NotificationsService {
     });
 
     if (notification === null) {
-      throw new AppError(404, "NOTIFICATION_NOT_FOUND", "No se encontrÃ³ la notificaciÃ³n solicitada.");
+      throw new AppError(404, "NOTIFICATION_NOT_FOUND", "No se encontró la notificación solicitada.");
     }
   }
 

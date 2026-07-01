@@ -215,8 +215,8 @@ export class InvestigationsService {
       await new NotificationsService(this.prisma).notifyMany(recipientIds, {
         actorId: requester.id,
         type: NotificationType.INVESTIGATION_UPDATED,
-        title: "InvestigaciÃ³n actualizada",
-        message: `${current.caseNumber} cambiÃ³ de estado a ${data.status}.`,
+        title: "Investigación actualizada",
+        message: `${current.caseNumber} cambió de estado a ${data.status}.`,
         link: `/investigaciones/${id}`,
         meta: { investigationId: id, previousStatus: current.status, status: data.status }
       });
@@ -270,8 +270,8 @@ export class InvestigationsService {
       recipientId: data.userId,
       actorId: requester.id,
       type: NotificationType.INVESTIGATION_ASSIGNED,
-      title: "Nueva asignaciÃ³n",
-      message: `${investigation?.caseNumber ?? "Una investigaciÃ³n"} fue asignada a tu despacho.`,
+      title: "Nueva asignación",
+      message: `${investigation?.caseNumber ?? "Una investigación"} fue asignada a tu despacho.`,
       link: `/investigaciones/${id}`,
       meta: { investigationId: id, accessLevel: data.accessLevel }
     });

@@ -128,8 +128,8 @@ export class SanctionsService {
       recipientId: data.userId,
       actorId: issuer.id,
       type: NotificationType.SANCTION_ISSUED,
-      title: "SanciÃ³n emitida",
-      message: `Se registrÃ³ una sanciÃ³n ${data.type} en tu expediente interno.`,
+      title: "Sanción emitida",
+      message: `Se registró una sanción ${data.type} en tu expediente interno.`,
       link: `/fiscales/${data.userId}`,
       meta: { sanctionId: sanction.id, type: data.type, severity: data.severity }
     });

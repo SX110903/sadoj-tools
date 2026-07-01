@@ -337,7 +337,7 @@ export class WarrantsService {
 
     const property = await this.prisma.property.findUnique({ where: { id: propertyId }, select: { id: true } });
     if (property === null) {
-      throw new AppError(404, "PROPERTY_NOT_FOUND", "No se encontrÃ³ la propiedad objetivo.");
+      throw new AppError(404, "PROPERTY_NOT_FOUND", "No se encontró la propiedad objetivo.");
     }
 
     return property.id;

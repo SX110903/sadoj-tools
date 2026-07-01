@@ -1,13 +1,11 @@
 import { z } from "zod";
 import { AcademyContentType } from "../../shared/prisma";
+import { isSafeHttpUrl } from "../../shared/utils/url";
 
 const OptionalTextSchema = z.string().trim().max(10000).nullable().optional();
 const OptionalDateSchema = z.string().datetime().nullable().optional();
 const OptionalIdSchema = z.string().min(1).max(100).nullable().optional();
-const HttpUrlSchema = z.string().trim().url().max(2000).refine((value) => {
-  const protocol = new URL(value).protocol;
-  return protocol === "http:" || protocol === "https:";
-}, "El enlace debe usar HTTP o HTTPS.");
+const HttpUrlSchema = z.string().trim().max(2000).refine(isSafeHttpUrl, "El enlace debe usar HTTP o HTTPS.");
 
 export const AcademyContentParamsSchema = z.object({ id: z.string().cuid() });
 export const AcademyClassParamsSchema = z.object({ id: z.string().min(1).max(100) });

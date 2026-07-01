@@ -62,7 +62,7 @@ export class ChatService {
         actorId: requester.id,
         type: NotificationType.MENTION,
         title: "Te mencionaron",
-        message: `${message.author.displayName} te mencionÃ³ en el chat de ${room?.investigation.caseNumber ?? "una investigaciÃ³n"}.`,
+        message: `${message.author.displayName} te mencionó en el chat de ${room?.investigation.caseNumber ?? "una investigación"}.`,
         link,
         meta: { messageId: message.id, roomId }
       });
