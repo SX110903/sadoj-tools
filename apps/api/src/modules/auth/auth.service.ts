@@ -32,13 +32,18 @@ export interface AuthResult {
   user: UserSafe;
 }
 
+export interface LoginContext {
+  ip: string;
+  userAgent: string | null;
+}
+
 export class AuthService {
   public constructor(
     private readonly prisma: PrismaClient,
     private readonly redis: Redis
   ) {}
 
-  public async login(username: string, password: string): Promise<AuthResult> {
+  public async login(username: string, password: string, context?: LoginContext): Promise<AuthResult> {
     try {
       const user = await this.prisma.user.findUnique({ where: { username } });
 
@@ -53,10 +58,23 @@ export class AuthService {
       }
 
       await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      await this.recordLogin(user.id, context);
       return this.createAuthResult(user);
     } catch (error: unknown) {
       throw error;
     }
+  }
+
+  private async recordLogin(userId: string, context: LoginContext | undefined): Promise<void> {
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: "LOGIN",
+        entity: "Auth",
+        ip: context?.ip ?? null,
+        userAgent: context?.userAgent ?? null
+      }
+    });
   }
 
   public async logout(userId: string, accessTokenId: string, refreshToken: string | undefined): Promise<void> {

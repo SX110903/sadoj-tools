@@ -24,7 +24,10 @@ export async function loginController(request: FastifyRequest, reply: FastifyRep
   try {
     const input = LoginSchema.parse(request.body);
     const authService = new AuthService(request.server.prisma, request.server.redis);
-    const result = await authService.login(input.username, input.password);
+    const result = await authService.login(input.username, input.password, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"] ?? null
+    });
 
     setRefreshCookie(reply, result.refreshToken);
     reply.send({ error: false, data: { accessToken: result.accessToken, user: result.user }, message: "Inicio de sesión correcto." });

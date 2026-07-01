@@ -11,6 +11,7 @@ import {
 } from "../../shared/prisma";
 import { sortTimelineEvents, summarizeText, type TimelineEvent } from "../../shared/timeline";
 import { generateCaseNumber } from "../../shared/utils/case-number";
+import { withUniqueRetry } from "../../shared/utils/retry";
 import { buildPaginationMeta, getPagination, type PaginationMeta } from "../../shared/utils/pagination";
 import { canSeeConfidentialNotes } from "../../shared/utils/role";
 import type { AuthenticatedUser } from "../../types/fastify";
@@ -133,6 +134,10 @@ export class InvestigationsService {
   }
 
   public async create(data: CreateInvestigationInput, requester: AuthenticatedUser): Promise<unknown> {
+    return withUniqueRetry(() => this.createInvestigation(data, requester), ["caseNumber"]);
+  }
+
+  private async createInvestigation(data: CreateInvestigationInput, requester: AuthenticatedUser): Promise<unknown> {
     const caseNumber = await generateCaseNumber(this.prisma);
 
     return this.prisma.$transaction(async (transaction) => {

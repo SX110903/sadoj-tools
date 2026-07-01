@@ -2,6 +2,7 @@ import { ROLE_LEVEL } from "@sadoj/shared";
 import { AppError } from "../../shared/errors/AppError";
 import { DocumentStatus, NotificationType, Prisma, type PrismaClient } from "../../shared/prisma";
 import { buildPaginationMeta, getPagination, type PaginationMeta } from "../../shared/utils/pagination";
+import { withUniqueRetry } from "../../shared/utils/retry";
 import type { AuthenticatedUser } from "../../types/fastify";
 import { NotificationsService } from "../notifications/notifications.service";
 import type { CreateDocumentInput, DocumentsQueryInput, UpdateDocumentInput, UpdateDocumentStatusInput } from "./documents.schema";
@@ -71,7 +72,7 @@ export class DocumentsService {
       await this.ensureSubjectExists(data.subjectId);
     }
 
-    const document = await this.prisma.$transaction(async (transaction) => {
+    const document = await withUniqueRetry(() => this.prisma.$transaction(async (transaction) => {
       const documentNumber = await this.generateDocumentNumber(transaction);
       const document = await transaction.document.create({
         data: {
@@ -99,7 +100,7 @@ export class DocumentsService {
       });
 
       return document;
-    });
+    }), ["documentNumber"]);
 
     if (this.requiresSignature(data.type)) {
       const signers = await this.prisma.user.findMany({

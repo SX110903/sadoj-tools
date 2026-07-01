@@ -31,6 +31,8 @@ function semanticActionFor(method: string, pathname: string): string {
   if (method === "DELETE" && pathname.startsWith("/api/documents/")) return "DELETE_DOCUMENT";
   if (method === "PATCH" && pathname.includes("/photo")) return "UPDATE_SUBJECT_PHOTO";
   if (method === "PATCH" && pathname.includes("/avatar")) return "UPDATE_USER_AVATAR";
+  if (method === "PATCH" && pathname.startsWith("/api/users/") && pathname.endsWith("/role")) return "CHANGE_USER_ROLE";
+  if (method === "DELETE" && pathname.startsWith("/api/users/")) return "DEACTIVATE_USER";
 
   return route;
 }

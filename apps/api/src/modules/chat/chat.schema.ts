@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isSafeHttpUrl } from "../../shared/utils/url";
 
 export const ChatRoomParamsSchema = z.object({
   roomId: z.string().min(1)
@@ -11,7 +12,9 @@ export const ChatMessagesQuerySchema = z.object({
 
 export const SendMessageSchema = z.object({
   content: z.string().trim().min(1).max(2000),
-  fileUrl: z.string().url().optional(),
+  fileUrl: z.string().trim().refine(isSafeHttpUrl, {
+    message: "El enlace del archivo debe usar HTTP(S)."
+  }).optional(),
   fileId: z.string().min(1).optional(),
   fileName: z.string().trim().min(1).max(240).optional(),
   mentions: z.array(z.string().min(1)).default([])

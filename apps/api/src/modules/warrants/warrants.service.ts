@@ -15,6 +15,7 @@ import {
   type WarrantType as PrismaWarrantType
 } from "../../shared/prisma";
 import { buildPaginationMeta, getPagination, type PaginationMeta } from "../../shared/utils/pagination";
+import { withUniqueRetry } from "../../shared/utils/retry";
 import type { AuthenticatedUser } from "../../types/fastify";
 import type {
   CreateWarrantInput,
@@ -91,23 +92,26 @@ export class WarrantsService {
   public async create(data: CreateWarrantInput, requester: AuthenticatedUser): Promise<unknown> {
     await this.ensureInvestigationOpen(data.investigationId, requester);
     const propertyId = await this.resolvePropertyTarget(data);
-    const warrantNumber = await this.generateWarrantNumber(data.type as PrismaWarrantType);
 
-    return this.prisma.warrant.create({
-      data: {
-        warrantNumber,
-        investigationId: data.investigationId,
-        propertyId,
-        type: data.type as PrismaWarrantType,
-        title: data.title,
-        description: data.description,
-        location: data.location,
-        justification: data.justification,
-        legalBasis: data.legalBasis,
-        requestedById: requester.id
-      },
-      include: this.includeRelations()
-    });
+    return withUniqueRetry(async () => {
+      const warrantNumber = await this.generateWarrantNumber(data.type as PrismaWarrantType);
+
+      return this.prisma.warrant.create({
+        data: {
+          warrantNumber,
+          investigationId: data.investigationId,
+          propertyId,
+          type: data.type as PrismaWarrantType,
+          title: data.title,
+          description: data.description,
+          location: data.location,
+          justification: data.justification,
+          legalBasis: data.legalBasis,
+          requestedById: requester.id
+        },
+        include: this.includeRelations()
+      });
+    }, ["warrantNumber"]);
   }
 
   public async approve(id: string, requester: AuthenticatedUser): Promise<unknown> {

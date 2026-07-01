@@ -1,12 +1,10 @@
 import { DangerLevel, RelationshipType, SubjectStatus } from "../../shared/prisma";
 import { z } from "zod";
+import { isSafeImageUrl } from "../../shared/utils/url";
 
-const IMAGE_URL_REGEX = /\.(jpg|jpeg|png|webp|gif)$/i;
-
-export const ImageUrlSchema = z.string().trim().url().refine(
-  (url) => IMAGE_URL_REGEX.test(url) || url.includes("imgur.com"),
-  { message: "Debe ser un enlace directo a una imagen (Imgur, etc.)." }
-);
+export const ImageUrlSchema = z.string().trim().refine(isSafeImageUrl, {
+  message: "Debe ser un enlace HTTP(S) directo a una imagen (Imgur, etc.)."
+});
 
 export const SubjectParamsSchema = z.object({
   id: z.string().min(1)
