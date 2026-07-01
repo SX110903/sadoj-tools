@@ -19,7 +19,11 @@ export type Permission =
   | "UPLOAD_FILES"
   | "MANAGE_WARRANTS"
   | "VIEW_AUDIT_LOG"
-  | "SYSTEM_CONFIG";
+  | "SYSTEM_CONFIG"
+  | "MANAGE_HR"
+  | "PUBLISH_ACADEMY"
+  | "MANAGE_ACADEMY"
+  | "VIEW_ACADEMY";
 
 export interface UserSession {
   id: string;
@@ -43,11 +47,15 @@ interface AuthPayload {
   user: UserSession;
 }
 
+type LoginResult =
+  | { success: true; user: UserSession }
+  | { success: false; message: string };
+
 interface AuthContextValue {
   accessToken: string | null;
   user: UserSession | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<string | null>;
+  login: (username: string, password: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
@@ -100,19 +108,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
     }
   };
 
-  const login = async (username: string, password: string): Promise<string | null> => {
+  const login = async (username: string, password: string): Promise<LoginResult> => {
     const result = await apiRequest<AuthPayload>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password })
     });
 
     if (result.error) {
-      return result.message;
+      return { success: false, message: result.message };
     }
 
     setAccessToken(result.data.accessToken);
     setUser(result.data.user);
-    return null;
+    return { success: true, user: result.data.user };
   };
 
   const logout = async (): Promise<void> => {
@@ -184,4 +192,9 @@ export function useAuth(): AuthContextValue {
   }
 
   return context;
+}
+
+// Rank 0 (Legal Staff) has no operational access and is limited to Academy, profile, and exams.
+export function isAcademyOnly(user: UserSession | null): boolean {
+  return user !== null && !user.permissions.includes("VIEW_ASSIGNED_INVESTIGATIONS");
 }

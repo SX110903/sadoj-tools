@@ -1,6 +1,6 @@
 import { Permission } from "@sadoj/shared";
 import type { FastifyPluginAsync } from "fastify";
-import { requirePermission } from "../../shared/middleware/rbac.middleware";
+import { requireOperationalAccess, requirePermission } from "../../shared/middleware/rbac.middleware";
 import {
   createMapDrawingController,
   createMapElementController,
@@ -25,7 +25,7 @@ export const mapRoutes: FastifyPluginAsync = async (app) => {
   app.delete("/elements/:id", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_SUBJECTS])] }, deleteMapElementController);
   app.post("/elements/:id/subjects", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_SUBJECTS])] }, linkMapElementSubjectController);
   app.delete("/elements/:id/subjects/:subjectId", { preHandler: [app.authenticate, requirePermission([Permission.MANAGE_SUBJECTS])] }, unlinkMapElementSubjectController);
-  app.get("/investigation/:investigationId", { preHandler: [app.authenticate] }, getInvestigationMapController);
+  app.get("/investigation/:investigationId", { preHandler: [app.authenticate, requireOperationalAccess] }, getInvestigationMapController);
   app.post("/drawings", { preHandler: [app.authenticate, requirePermission([Permission.EDIT_INVESTIGATION])] }, createMapDrawingController);
   app.put("/drawings/:id", { preHandler: [app.authenticate, requirePermission([Permission.EDIT_INVESTIGATION])] }, updateMapDrawingController);
   app.delete("/drawings/:id", { preHandler: [app.authenticate, requirePermission([Permission.EDIT_INVESTIGATION])] }, deleteMapDrawingController);
