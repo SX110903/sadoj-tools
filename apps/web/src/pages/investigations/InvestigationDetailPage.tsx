@@ -2,8 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 import { ChatPanel } from "../../components/chat/ChatPanel";
+import { EvidenceBoardWorkspace } from "../../components/boards/EvidenceBoardWorkspace";
 import { DatalinkGraph } from "../../components/datalink/DatalinkGraph";
-import { FileUploadPanel } from "../../components/files/FileUploadPanel";
 import { IntelMapWorkspace } from "../../components/map/IntelMapWorkspace";
 import { NotesPanel } from "../../components/notes/NotesPanel";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -100,7 +100,7 @@ export function InvestigationDetailPage(): JSX.Element {
         {activeTab === "Documentos" ? <InvestigationDocumentsTab investigationId={investigation.id} /> : null}
         {activeTab === "Cronología" ? <TimelinePanel endpoint={`/api/investigations/${investigation.id}/timeline`} /> : null}
         {activeTab === "Notas" ? <NotesPanel target="investigations" targetId={investigation.id} /> : null}
-        {activeTab === "Archivos" ? <FileUploadPanel targetType="investigation" targetId={investigation.id} /> : null}
+        {activeTab === "Archivos" ? <EvidenceBoardWorkspace scope="investigation" targetId={investigation.id} title="Evidencias de la investigación" /> : null}
         {activeTab === "Chat" ? (
           investigation.chatRoom === null ? <EmptyState title="Esta investigación no tiene sala de chat." /> : <ChatPanel roomId={investigation.chatRoom.id} investigationId={investigation.id} />
         ) : null}

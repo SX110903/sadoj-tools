@@ -85,32 +85,54 @@ export class DashboardService {
         lastLoginAt: true
       }
     });
-    const summaries = await Promise.all(
-      users.map(async (user) => {
-        const [activeInvestigations, documentsLast30Days, activeSanctions] = await this.prisma.$transaction([
-          this.prisma.investigation.count({
-            where: {
-              status: { in: [InvestigationStatus.OPEN, InvestigationStatus.ACTIVE] },
-              OR: [{ leadFiscalId: user.id }, { participants: { some: { userId: user.id } } }]
-            }
-          }),
-          this.prisma.document.count({ where: { createdById: user.id, createdAt: { gte: since } } }),
-          this.prisma.sanction.count({ where: { userId: user.id, active: true } })
-        ]);
+    const userIds = users.map((user) => user.id);
 
-        return {
-          id: user.id,
-          displayName: user.displayName,
-          role: user.role,
-          avatar: user.avatar,
-          badgeNumber: user.badgeNumber,
-          activeInvestigations,
-          documentsLast30Days,
-          activeSanctions,
-          lastLoginAt: user.lastLoginAt
-        };
+    // Aggregate once instead of querying per user (avoids N+1 on the team panel).
+    const [activeInvestigations, documentGroups, sanctionGroups] = await Promise.all([
+      this.prisma.investigation.findMany({
+        where: { status: { in: [InvestigationStatus.OPEN, InvestigationStatus.ACTIVE] } },
+        select: { leadFiscalId: true, participants: { select: { userId: true } } }
+      }),
+      this.prisma.document.groupBy({
+        by: ["createdById"],
+        where: { createdById: { in: userIds }, createdAt: { gte: since } },
+        _count: { _all: true }
+      }),
+      this.prisma.sanction.groupBy({
+        by: ["userId"],
+        where: { userId: { in: userIds }, active: true },
+        _count: { _all: true }
       })
-    );
+    ]);
+
+    const investigationCounts = new Map<string, number>();
+    for (const investigation of activeInvestigations) {
+      const involvedUserIds = new Set<string>();
+      if (investigation.leadFiscalId !== null) {
+        involvedUserIds.add(investigation.leadFiscalId);
+      }
+      for (const participant of investigation.participants) {
+        involvedUserIds.add(participant.userId);
+      }
+      for (const userId of involvedUserIds) {
+        investigationCounts.set(userId, (investigationCounts.get(userId) ?? 0) + 1);
+      }
+    }
+
+    const documentCounts = new Map(documentGroups.map((group) => [group.createdById, group._count._all]));
+    const sanctionCounts = new Map(sanctionGroups.map((group) => [group.userId, group._count._all]));
+
+    const summaries: PersonnelSummary[] = users.map((user) => ({
+      id: user.id,
+      displayName: user.displayName,
+      role: user.role,
+      avatar: user.avatar,
+      badgeNumber: user.badgeNumber,
+      activeInvestigations: investigationCounts.get(user.id) ?? 0,
+      documentsLast30Days: documentCounts.get(user.id) ?? 0,
+      activeSanctions: sanctionCounts.get(user.id) ?? 0,
+      lastLoginAt: user.lastLoginAt
+    }));
 
     return summaries.sort((left, right) => ROLE_LEVEL[right.role as RoleType] - ROLE_LEVEL[left.role as RoleType]);
   }

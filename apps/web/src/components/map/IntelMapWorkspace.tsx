@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
@@ -46,7 +47,7 @@ type OrganizationFormState = {
   type: OrgType;
 };
 
-type RightPanelMode = "legend" | "create" | "edit";
+type RightPanelMode = "legend" | "create" | "edit" | "propertyDetail";
 
 interface IntelMapWorkspaceProps {
   investigationId?: string;
@@ -122,6 +123,18 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
     const nextOrg = searchParams.get("org");
     setActiveOrgFilter(nextOrg);
   }, [searchParams]);
+
+  useEffect(() => {
+    const focusPropertyId = searchParams.get("property");
+    if (focusPropertyId === null || elements === null) {
+      return;
+    }
+
+    const match = elements.find((element) => element.propertyId === focusPropertyId);
+    if (match !== undefined) {
+      setHighlightedElementId(match.id);
+    }
+  }, [elements, searchParams]);
 
   const filteredElements = useMemo(() => {
     const source = elements ?? [];
@@ -312,6 +325,7 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
 
   const openHistory = async (property: Property): Promise<void> => {
     setHistoryTarget({ property, dossier: null, accessDenied: false });
+    setRightPanel("propertyDetail");
     const result = await apiRequest<PropertyDossier>(`/api/properties/${property.id}/dossier`, {}, accessToken);
     setHistoryTarget({ property, dossier: result.error ? null : result.data, accessDenied: result.error });
   };
@@ -319,10 +333,6 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
   const selectElement = (element: MapElement): void => {
     setSelectedElement(element);
     setHighlightedElementId(element.id);
-
-    if (element.property !== null && element.property !== undefined) {
-      void openHistory(element.property);
-    }
   };
 
   const deleteElement = async (element: MapElement): Promise<void> => {
@@ -379,6 +389,15 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
             onDelete={(element) => void deleteElement(element)}
             onOpenHistory={(property) => void openHistory(property)}
           />
+        ) : rightPanel === "propertyDetail" ? (
+          <PropertyHistoryPanel
+            target={historyTarget}
+            onBack={() => {
+              setHistoryTarget(null);
+              setRightPanel("legend");
+            }}
+            onImageOpen={setLightboxUrl}
+          />
         ) : (
           <IntelElementForm
             draft={pendingDraft}
@@ -397,13 +416,6 @@ export function IntelMapWorkspace({ investigationId, title = "Los Santos" }: Int
           />
         )}
       </section>
-      {historyTarget !== null ? (
-        <PropertyHistorySheet
-          target={historyTarget}
-          onClose={() => setHistoryTarget(null)}
-          onImageOpen={setLightboxUrl}
-        />
-      ) : null}
       {lightboxUrl !== null ? (
         <button type="button" className="lightbox" onClick={() => setLightboxUrl(null)} aria-label="Cerrar imagen">
           <img src={lightboxUrl} alt="Evidencia ampliada" />
@@ -625,30 +637,51 @@ function IntelElementForm({
   );
 }
 
-function PropertyHistorySheet({
+function PropertyHistoryPanel({
   target,
-  onClose,
+  onBack,
   onImageOpen
 }: {
-  target: PropertyHistoryTarget;
-  onClose: () => void;
+  target: PropertyHistoryTarget | null;
+  onBack: () => void;
   onImageOpen: (url: string) => void;
 }): JSX.Element {
+  if (target === null) {
+    return (
+      <aside className="intel-legend-panel intel-property-detail-panel">
+        <div className="intel-legend-header">
+          <button type="button" className="secondary-link compact-button" onClick={onBack}>
+            <ArrowLeft size={16} />
+            Volver
+          </button>
+        </div>
+        <div className="intel-legend-list property-history-panel-body">
+          <SkeletonBlock height={180} />
+        </div>
+      </aside>
+    );
+  }
+
   const dossier = target.dossier;
   const property = dossier?.property ?? target.property;
   const incidents = dossier?.incidents ?? [];
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <section className="modal-panel property-history-sheet">
+    <aside className="intel-legend-panel intel-property-detail-panel">
+      <div className="intel-legend-header">
         <div className="actions-row">
           <div>
             <p className="eyebrow">Expediente de propiedad</p>
             <h2>{property.address}</h2>
             <p className="muted">{TYPE_LABELS[property.type] ?? property.type} · {property.zone ?? "Zona no registrada"}</p>
           </div>
-          <button type="button" className="secondary-link compact-button" onClick={onClose}>Cerrar</button>
+          <button type="button" className="secondary-link compact-button" onClick={onBack}>
+            <ArrowLeft size={16} />
+            Volver
+          </button>
         </div>
+      </div>
+      <div className="intel-legend-list property-history-panel-body">
         {dossier === null && !target.accessDenied ? <SkeletonBlock height={160} /> : null}
         {target.accessDenied ? (
           <div className="panel">
@@ -703,7 +736,7 @@ function PropertyHistorySheet({
         </div>
         <div className="actions-row">
           <Link className="primary-link" to={`/propiedades/${property.id}`}>
-            Abrir expediente completo
+            Abrir ficha completa
           </Link>
           {dossier?.permissions.canWrite === true ? (
             <Link className="secondary-link" to={`/propiedades/${property.id}?newIncident=1`}>
@@ -711,8 +744,8 @@ function PropertyHistorySheet({
             </Link>
           ) : null}
         </div>
-      </section>
-    </div>
+      </div>
+    </aside>
   );
 }
 

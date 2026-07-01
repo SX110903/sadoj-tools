@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { FileText, Network, Pencil } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
+import { EvidenceBoardWorkspace } from "../../components/boards/EvidenceBoardWorkspace";
 import { ImageUrlInput } from "../../components/common/ImageUrlInput";
-import { FileUploadPanel } from "../../components/files/FileUploadPanel";
 import { NotesPanel } from "../../components/notes/NotesPanel";
 import { StatusBadge } from "../../components/StatusBadge";
 import { TimelinePanel } from "../../components/timeline/TimelinePanel";
@@ -13,7 +13,7 @@ import type { Property, Subject, SubjectDetail, Warrant } from "../../types/sado
 import { gtaToPreviewPercent } from "../../utils/mapCoords";
 import { shortDateTime, STATUS_LABELS, TYPE_LABELS } from "../../utils/labels";
 
-const TABS = ["Información", "Vehículos", "Propiedades", "Relaciones", "Zonas", "Notas", "Investigaciones", "Cronología"] as const;
+const TABS = ["Información", "Vehículos", "Propiedades", "Relaciones", "Zonas", "Notas", "Investigaciones", "Cronología", "Archivos"] as const;
 type SubjectTab = (typeof TABS)[number];
 
 interface VehicleOption {
@@ -154,8 +154,8 @@ export function SubjectDetailPage(): JSX.Element {
         {activeTab === "Notas" ? <NotesPanel target="subjects" targetId={subject.id} /> : null}
         {activeTab === "Investigaciones" ? <InvestigationsTab subject={subject} /> : null}
         {activeTab === "Cronología" ? <TimelinePanel endpoint={`/api/subjects/${subject.id}/timeline`} /> : null}
+        {activeTab === "Archivos" ? <EvidenceBoardWorkspace scope="subject" targetId={subject.id} title="Evidencias del sujeto" /> : null}
       </div>
-      <FileUploadPanel targetType="subject" targetId={subject.id} initialFiles={subject.files} />
       {photoDialogOpen ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <section className="modal-panel image-url-dialog">

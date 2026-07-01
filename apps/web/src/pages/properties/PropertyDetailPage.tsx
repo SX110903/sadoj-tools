@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../auth/auth-context";
@@ -18,7 +19,6 @@ import type {
   PropertyIncidentType,
   PropertyMember
 } from "../../types/sadoj";
-import { gtaToPreviewPercent } from "../../utils/mapCoords";
 import { ACCESS_LABELS, shortDateTime, STATUS_LABELS, TYPE_LABELS } from "../../utils/labels";
 
 const TABS = ["Resumen", "Incidentes", "Acceso y miembros", "Cronología"] as const;
@@ -239,7 +239,7 @@ export function PropertyDetailPage(): JSX.Element {
               + Registrar incidente
             </button>
           ) : null}
-          <MiniMap gtaX={property.gtaX} gtaY={property.gtaY} />
+          <ViewOnMapButton propertyId={property.id} gtaX={property.gtaX} gtaY={property.gtaY} />
         </div>
       </header>
 
@@ -561,15 +561,15 @@ function MembersTab({
   );
 }
 
-function MiniMap({ gtaX, gtaY }: { gtaX: number | null; gtaY: number | null }): JSX.Element {
-  const position = gtaX !== null && gtaY !== null ? gtaToPreviewPercent(gtaX, gtaY) : null;
+function ViewOnMapButton({ propertyId, gtaX, gtaY }: { propertyId: string; gtaX: number | null; gtaY: number | null }): JSX.Element | null {
+  if (gtaX === null || gtaY === null) {
+    return null;
+  }
 
   return (
-    <Link className="property-mini-map-link" to={gtaX !== null && gtaY !== null ? "/mapa" : "#"}>
-      <span className="mini-map-preview property-mini-map">
-        {position !== null ? <i className="mini-map-point" style={{ left: position.left, top: position.top }} /> : null}
-      </span>
-      <small>{position === null ? "Sin coordenadas" : "Ver en mapa"}</small>
+    <Link className="secondary-link compact-button" to={`/mapa?property=${encodeURIComponent(propertyId)}`}>
+      <MapPin size={16} />
+      Ver en el mapa
     </Link>
   );
 }

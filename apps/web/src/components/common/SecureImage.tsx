@@ -22,5 +22,5 @@ export function SecureImage({ fileId, alt, className, onClick }: SecureImageProp
     );
   }
 
-  return <img src={signedUrl} alt={alt ?? "Archivo"} className={className} onClick={() => onClick?.(signedUrl)} />;
+  return <img src={signedUrl} alt={alt ?? "Archivo"} className={className} loading="lazy" onClick={() => onClick?.(signedUrl)} />;
 }
