@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build y calidad
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Generar cliente Prisma
+        run: pnpm --filter @sadoj/api prisma generate
+
+      - name: Build (shared + api + web)
+        run: pnpm build
+
+      - name: Calidad — sin any / @ts-ignore
+        run: |
+          if rg -n ": any\b|<any>|as any|@ts-ignore|@ts-expect-error" --glob '!node_modules' --glob '!dist' apps packages; then
+            echo "::error::Se han encontrado usos de 'any' o supresiones de TypeScript."
+            exit 1
+          fi
+
+      - name: Calidad — sin console.log/debug
+        run: |
+          if rg -n "console\.(log|debug)" --glob '!node_modules' --glob '!dist' apps packages; then
+            echo "::error::Se han encontrado console.log/console.debug."
+            exit 1
+          fi
