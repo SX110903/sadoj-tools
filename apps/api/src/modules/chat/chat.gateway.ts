@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { ROLE_PERMISSIONS, type RoleType } from "@sadoj/shared";
+import { isAcademyOnly, ROLE_PERMISSIONS, type RoleType } from "@sadoj/shared";
 import { Server, type Namespace, type Socket } from "socket.io";
 import type { Prisma } from "../../shared/prisma";
 import { env } from "../../config/env";
@@ -111,6 +111,11 @@ export function setupChatGateway(app: FastifyInstance): void {
       }
 
       const role = payload.role as RoleType;
+      if (isAcademyOnly(role)) {
+        next(new Error("OPERATIONAL_ACCESS_REQUIRED"));
+        return;
+      }
+
       socket.data.user = {
         id: user.id,
         role,
