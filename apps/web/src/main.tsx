@@ -1,8 +1,8 @@
-import React from "react";
+import React, { lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { Navigate, Route, RouterProvider, createBrowserRouter, createRoutesFromElements, useLocation, useParams } from "react-router-dom";
 import { Toaster } from "sonner";
-import { AuthProvider } from "./auth/auth-context";
+import { AuthProvider, useAuth } from "./auth/auth-context";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -12,30 +12,49 @@ import { RolesPage } from "./pages/admin/RolesPage";
 import { SanctionsPage } from "./pages/admin/SanctionsPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
-import { DatalinkPage } from "./pages/datalink/DatalinkPage";
-import { DocumentDetailPage } from "./pages/documents/DocumentDetailPage";
-import { DocumentEditorPage } from "./pages/documents/DocumentEditorPage";
 import { DocumentsListPage } from "./pages/documents/DocumentsListPage";
 import { NotFoundPage } from "./pages/errors/NotFoundPage";
 import { FiscalCreatePage } from "./pages/fiscales/FiscalCreatePage";
 import { FiscalDetailPage } from "./pages/fiscales/FiscalDetailPage";
 import { FiscalesListPage } from "./pages/fiscales/FiscalesListPage";
 import { InvestigationCreatePage } from "./pages/investigations/InvestigationCreatePage";
-import { InvestigationDetailPage } from "./pages/investigations/InvestigationDetailPage";
 import { InvestigationsListPage } from "./pages/investigations/InvestigationsListPage";
-import { MapPage } from "./pages/map/MapPage";
 import { NotificationsPage } from "./pages/notifications/NotificationsPage";
 import { OrganizationDetailPage } from "./pages/organizations/OrganizationDetailPage";
 import { OrganizationsListPage } from "./pages/organizations/OrganizationsListPage";
 import { ProfilePage } from "./pages/profile/ProfilePage";
 import { PropertyDetailPage } from "./pages/properties/PropertyDetailPage";
 import { SubjectCreatePage } from "./pages/subjects/SubjectCreatePage";
-import { SubjectDetailPage } from "./pages/subjects/SubjectDetailPage";
 import { SubjectsListPage } from "./pages/subjects/SubjectsListPage";
 import { WarrantCreatePage } from "./pages/warrants/WarrantCreatePage";
 import { WarrantDetailPage } from "./pages/warrants/WarrantDetailPage";
 import { WarrantsListPage } from "./pages/warrants/WarrantsListPage";
+import { ACADEMY_ROUTE, DASHBOARD_ROUTE, getHomeRoute, LOGIN_ROUTE } from "./utils/home";
 import "./styles.css";
+
+// Heavy routes (Leaflet, ReactFlow, document templates) are code-split to shrink the
+// initial bundle. The Suspense fallback lives in AppLayout's content area.
+const BoardsPage = lazy(() => import("./pages/boards/BoardsPage").then((m) => ({ default: m.BoardsPage })));
+const DatalinkPage = lazy(() => import("./pages/datalink/DatalinkPage").then((m) => ({ default: m.DatalinkPage })));
+const MapPage = lazy(() => import("./pages/map/MapPage").then((m) => ({ default: m.MapPage })));
+const InvestigationDetailPage = lazy(() => import("./pages/investigations/InvestigationDetailPage").then((m) => ({ default: m.InvestigationDetailPage })));
+const SubjectDetailPage = lazy(() => import("./pages/subjects/SubjectDetailPage").then((m) => ({ default: m.SubjectDetailPage })));
+const DocumentDetailPage = lazy(() => import("./pages/documents/DocumentDetailPage").then((m) => ({ default: m.DocumentDetailPage })));
+const DocumentEditorPage = lazy(() => import("./pages/documents/DocumentEditorPage").then((m) => ({ default: m.DocumentEditorPage })));
+const ExamsPage = lazy(() => import("./pages/exams/ExamsPage").then((m) => ({ default: m.ExamsPage })));
+const HrPage = lazy(() => import("./pages/hr/HrPage").then((m) => ({ default: m.HrPage })));
+const CandidateDetailPage = lazy(() => import("./pages/hr/CandidateDetailPage").then((m) => ({ default: m.CandidateDetailPage })));
+const AcademyPage = lazy(() => import("./pages/academy/AcademyPage").then((m) => ({ default: m.AcademyPage })));
+
+function HomeRedirect(): JSX.Element {
+  const { user } = useAuth();
+
+  if (user === null) {
+    return <Navigate to={LOGIN_ROUTE} replace />;
+  }
+
+  return <Navigate to={getHomeRoute(user)} replace />;
+}
 
 function RedirectWithSearch({ to }: { to: string }): JSX.Element {
   const location = useLocation();
@@ -60,11 +79,11 @@ function CriticalPageBoundary({ title, children }: { title: string; children: Re
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path={LOGIN_ROUTE} element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route index element={<HomeRedirect />} />
+          <Route path={DASHBOARD_ROUTE} element={<DashboardPage />} />
           <Route element={<ProtectedRoute permission="MANAGE_USERS" />}>
             <Route path="/fiscales" element={<FiscalesListPage />} />
             <Route path="/fiscales/nuevo" element={<FiscalCreatePage />} />
@@ -110,6 +129,18 @@ const router = createBrowserRouter(
           <Route path="/properties/:id" element={<RedirectEntityWithSearch toBase="/propiedades" />} />
           <Route element={<ProtectedRoute permission="VIEW_SUBJECTS" />}>
             <Route path="/datalink" element={<CriticalPageBoundary title="Algo salió mal al cargar DataLink"><DatalinkPage /></CriticalPageBoundary>} />
+          </Route>
+          <Route element={<ProtectedRoute permission="VIEW_ALL_INVESTIGATIONS" />}>
+            <Route path="/pizarras" element={<CriticalPageBoundary title="Algo salió mal al cargar las pizarras"><BoardsPage /></CriticalPageBoundary>} />
+          </Route>
+          <Route path="/examenes" element={<CriticalPageBoundary title="Algo salió mal al cargar los exámenes"><ExamsPage /></CriticalPageBoundary>} />
+          <Route path="/exams" element={<Navigate to="/examenes" replace />} />
+          <Route element={<ProtectedRoute permission="VIEW_ACADEMY" />}>
+            <Route path={ACADEMY_ROUTE} element={<AcademyPage />} />
+          </Route>
+          <Route element={<ProtectedRoute permission="MANAGE_HR" />}>
+            <Route path="/rrhh" element={<HrPage />} />
+            <Route path="/rrhh/:id" element={<CandidateDetailPage />} />
           </Route>
           <Route element={<ProtectedRoute permission="VIEW_SUBJECTS" />}>
             <Route path="/documentos" element={<DocumentsListPage />} />

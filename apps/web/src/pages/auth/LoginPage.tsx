@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/auth-context";
+import { getHomeRoute } from "../../utils/home";
 
 export function LoginPage(): JSX.Element {
   const { user, login } = useAuth();
@@ -14,7 +15,7 @@ export function LoginPage(): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (user !== null) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getHomeRoute(user)} replace />;
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -23,14 +24,14 @@ export function LoginPage(): JSX.Element {
     setIsSubmitting(true);
 
     try {
-      const error = await login(username, password);
+      const result = await login(username, password);
 
-      if (error !== null) {
-        setErrorMessage(error);
+      if (!result.success) {
+        setErrorMessage(result.message);
         return;
       }
 
-      navigate("/dashboard", { replace: true });
+      navigate(getHomeRoute(result.user), { replace: true });
     } finally {
       setIsSubmitting(false);
     }

@@ -1,11 +1,13 @@
-import { FileSearch, FileText, FolderOpen, Gavel, LayoutDashboard, Lock, LogOut, Map, Network, Search, Shield, ShieldAlert, UserCircle, Users } from "lucide-react";
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { FileQuestion, FileSearch, FileText, FolderOpen, Gavel, GraduationCap, LayoutDashboard, Lock, LogOut, Map, Menu, Network, Search, Shield, ShieldAlert, StickyNote, UserCircle, UserPlus, Users, X } from "lucide-react";
+import { Suspense, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useAuth, type Permission } from "../../auth/auth-context";
+import { isAcademyOnly, useAuth, type Permission, type UserSession } from "../../auth/auth-context";
 import { apiRequest } from "../../services/api";
-import { NotificationBell } from "../notifications/NotificationBell";
 import type { SearchResultItem, SearchResults } from "../../types/sadoj";
+import { ACADEMY_ROUTE, DASHBOARD_ROUTE, LOGIN_ROUTE } from "../../utils/home";
 import { roleLabel } from "../../utils/labels";
+import { NotificationBell } from "../notifications/NotificationBell";
+import { SkeletonBlock } from "../ui";
 
 interface NavigationItem {
   label: string;
@@ -14,17 +16,22 @@ interface NavigationItem {
   permission?: Permission;
   locked?: boolean;
   separatorAfter?: boolean;
+  operational?: boolean;
 }
 
 const NAVIGATION_ITEMS: readonly NavigationItem[] = [
-  { label: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={18} /> },
+  { label: "Dashboard", path: DASHBOARD_ROUTE, icon: <LayoutDashboard size={18} />, operational: true },
   { label: "Investigaciones", path: "/investigaciones", icon: <FolderOpen size={18} />, permission: "VIEW_ASSIGNED_INVESTIGATIONS" },
   { label: "Sujetos", path: "/sujetos", icon: <FileSearch size={18} />, permission: "VIEW_SUBJECTS" },
   { label: "Organizaciones", path: "/organizaciones", icon: <Network size={18} />, permission: "VIEW_SUBJECTS" },
   { label: "Órdenes", path: "/ordenes", icon: <Gavel size={18} />, permission: "MANAGE_WARRANTS" },
   { label: "Documentos", path: "/documentos", icon: <FileText size={18} />, permission: "VIEW_SUBJECTS" },
   { label: "Mapa", path: "/mapa", icon: <Map size={18} />, permission: "VIEW_SUBJECTS" },
-  { label: "DataLink", path: "/datalink", icon: <Network size={18} />, permission: "VIEW_SUBJECTS", separatorAfter: true },
+  { label: "DataLink", path: "/datalink", icon: <Network size={18} />, permission: "VIEW_SUBJECTS" },
+  { label: "Pizarras", path: "/pizarras", icon: <StickyNote size={18} />, permission: "VIEW_ALL_INVESTIGATIONS" },
+  { label: "Academia", path: ACADEMY_ROUTE, icon: <GraduationCap size={18} />, permission: "VIEW_ACADEMY" },
+  { label: "Exámenes", path: "/examenes", icon: <FileQuestion size={18} />, separatorAfter: true },
+  { label: "RRHH", path: "/rrhh", icon: <UserPlus size={18} />, permission: "MANAGE_HR" },
   { label: "Sanciones", path: "/admin/sanciones", icon: <ShieldAlert size={18} />, permission: "MANAGE_SANCTIONS" },
   { label: "Fiscales", path: "/fiscales", icon: <Users size={18} />, permission: "MANAGE_USERS" },
   { label: "Admin", path: "/admin", icon: <Shield size={18} />, permission: "SYSTEM_CONFIG" }
@@ -38,64 +45,55 @@ const SEARCH_GROUPS = [
   { key: "properties", title: "Propiedades" }
 ] as const satisfies ReadonlyArray<{ key: keyof SearchResults; title: string }>;
 
-function isVisible(hasPermission: (permission: Permission) => boolean, item: NavigationItem): boolean {
+function isVisible(hasPermission: (permission: Permission) => boolean, item: NavigationItem, academyOnly: boolean): boolean {
+  if (academyOnly && item.operational === true) {
+    return false;
+  }
   return item.permission === undefined || hasPermission(item.permission);
 }
 
 export function AppLayout(): JSX.Element {
   const { user, hasPermission, logout } = useAuth();
   const navigate = useNavigate();
-  const visibleItems = NAVIGATION_ITEMS.filter((item) => isVisible(hasPermission, item));
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const academyOnly = isAcademyOnly(user);
+  const visibleItems = NAVIGATION_ITEMS.filter((item) => isVisible(hasPermission, item, academyOnly));
 
   const handleLogout = async (): Promise<void> => {
     await logout();
-    navigate("/login", { replace: true });
+    navigate(LOGIN_ROUTE, { replace: true });
+  };
+
+  const closeMobileNav = (): void => {
+    setIsMobileNavOpen(false);
   };
 
   return (
     <div className="app-layout">
       <aside className="sidebar">
-        <div className="brand">
-          <img src="/logo.webp" alt="SADOJ Fiscalía" />
-          <span>SADOJ Fiscalía</span>
-        </div>
-        <nav className="nav-list" aria-label="Navegación principal">
-          {visibleItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => {
-                const classes = ["nav-link"];
-                if (isActive) classes.push("active");
-                if (item.separatorAfter === true) classes.push("section-end");
-                return classes.join(" ");
-              }}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-              {item.locked === true ? <Lock size={13} aria-label="Sección restringida" /> : null}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="sidebar-profile">
-          {user?.avatar !== null && user?.avatar !== undefined ? (
-            <img className="avatar avatar-image small" src={user.avatar} alt="" />
-          ) : (
-            <div className="avatar small">{user?.displayName.slice(0, 1) ?? "S"}</div>
-          )}
-          <div>
-            <strong>{user?.displayName ?? "Fiscal"}</strong>
-            <span>{roleLabel(user?.role ?? "PASANTE")}</span>
-          </div>
-          <button type="button" className="icon-button" aria-label="Cerrar sesión" onClick={() => void handleLogout()}>
-            <LogOut size={18} />
-          </button>
-        </div>
+        <SidebarContent visibleItems={visibleItems} user={user} onLogout={() => void handleLogout()} onNavigate={closeMobileNav} />
       </aside>
+      {isMobileNavOpen ? (
+        <div className="mobile-sidebar-backdrop" role="presentation" onClick={closeMobileNav}>
+          <aside className="mobile-sidebar-drawer" aria-label="Navegación móvil" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="icon-button mobile-sidebar-close" aria-label="Cerrar menú" onClick={closeMobileNav}>
+              <X size={18} />
+            </button>
+            <SidebarContent visibleItems={visibleItems} user={user} onLogout={() => void handleLogout()} onNavigate={closeMobileNav} />
+          </aside>
+        </div>
+      ) : null}
       <div className="main-column">
         <header className="topbar">
-          <GlobalSearch />
+          <button type="button" className="icon-button mobile-menu-button" aria-label="Abrir menú" onClick={() => setIsMobileNavOpen(true)}>
+            <Menu size={18} />
+          </button>
+          <GlobalSearch isMobileOpen={isMobileSearchOpen} />
           <div className="topbar-actions">
+            <button type="button" className="icon-button mobile-search-button" aria-label="Buscar" onClick={() => setIsMobileSearchOpen((current) => !current)}>
+              <Search size={18} />
+            </button>
             <NotificationBell />
             <button type="button" className="profile-chip" onClick={() => navigate("/perfil")}>
               <UserCircle size={18} />
@@ -104,14 +102,70 @@ export function AppLayout(): JSX.Element {
           </div>
         </header>
         <main className="content">
-          <Outlet />
+          <Suspense fallback={<SkeletonBlock height={520} />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
   );
 }
 
-function GlobalSearch(): JSX.Element {
+function SidebarContent({
+  visibleItems,
+  user,
+  onLogout,
+  onNavigate
+}: {
+  visibleItems: NavigationItem[];
+  user: UserSession | null;
+  onLogout: () => void;
+  onNavigate: () => void;
+}): JSX.Element {
+  return (
+    <>
+      <div className="brand">
+        <img src="/logo.webp" alt="SADOJ Fiscalía" />
+        <span>SADOJ Fiscalía</span>
+      </div>
+      <nav className="nav-list" aria-label="Navegación principal">
+        {visibleItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            onClick={onNavigate}
+            className={({ isActive }) => {
+              const classes = ["nav-link"];
+              if (isActive) classes.push("active");
+              if (item.separatorAfter === true) classes.push("section-end");
+              return classes.join(" ");
+            }}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+            {item.locked === true ? <Lock size={13} aria-label="Sección restringida" /> : null}
+          </NavLink>
+        ))}
+      </nav>
+      <div className="sidebar-profile">
+        {user?.avatar !== null && user?.avatar !== undefined ? (
+          <img className="avatar avatar-image small" src={user.avatar} alt="" />
+        ) : (
+          <div className="avatar small">{user?.displayName.slice(0, 1) ?? "S"}</div>
+        )}
+        <div>
+          <strong>{user?.displayName ?? "Fiscal"}</strong>
+          <span>{roleLabel(user?.role ?? "PASANTE")}</span>
+        </div>
+        <button type="button" className="icon-button" aria-label="Cerrar sesión" onClick={onLogout}>
+          <LogOut size={18} />
+        </button>
+      </div>
+    </>
+  );
+}
+
+function GlobalSearch({ isMobileOpen }: { isMobileOpen: boolean }): JSX.Element {
   const { accessToken } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -173,7 +227,7 @@ function GlobalSearch(): JSX.Element {
   };
 
   return (
-    <div className="global-search">
+    <div className={isMobileOpen ? "global-search mobile-open" : "global-search"}>
       <Search size={18} />
       <input
         value={query}

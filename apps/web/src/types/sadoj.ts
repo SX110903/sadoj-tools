@@ -42,7 +42,257 @@ export type NotificationType =
   | "WARRANT_REJECTED"
   | "SANCTION_ISSUED"
   | "MENTION"
-  | "NOTE_ADDED";
+  | "NOTE_ADDED"
+  | "DECORATION_AWARDED"
+  | "TASK_ASSIGNED";
+
+export type DecorationTier = "BRONZE" | "SILVER" | "GOLD" | "PLATINUM";
+
+export interface Decoration {
+  id: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  color: string | null;
+  tier: DecorationTier;
+  createdAt: string;
+}
+
+export interface DecorationAward {
+  id: string;
+  decorationId: string;
+  decoration: Decoration;
+  userId: string;
+  awardedById: string;
+  awardedBy: PersonRef;
+  reason: string | null;
+  awardedAt: string;
+}
+
+export type TaskStatus = "PENDING" | "IN_PROGRESS" | "DONE" | "CANCELLED";
+export type TaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
+
+export interface TaskInvestigationRef {
+  id: string;
+  caseNumber: string;
+  title: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignedToId: string;
+  assignedTo: PersonRef;
+  assignedById: string;
+  assignedBy: PersonRef;
+  investigationId: string | null;
+  investigation: TaskInvestigationRef | null;
+  dueDate: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ExamAssignmentStatus = "OPEN" | "CLOSED" | "COMPLETED";
+export type CandidateStatus = "PENDING" | "INTERVIEWED" | "APPROVED" | "REJECTED";
+export type InterviewResult = "PENDING" | "PASSED" | "FAILED";
+export type AcademyContentType = "NOTE" | "VIDEO" | "DOCUMENT" | "REGULATION";
+export type AcademyExamStatus = "PENDING" | "AVAILABLE" | "PASSED" | "FAILED";
+
+export interface CandidateInterview {
+  id: string;
+  candidateId: string;
+  interviewerId: string;
+  interviewer: PersonRef & { username: string };
+  scheduledAt: string | null;
+  conductedAt: string | null;
+  score: number | null;
+  result: InterviewResult;
+  feedback: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Candidate {
+  id: string;
+  fullName: string;
+  contact: string | null;
+  notes: string | null;
+  status: CandidateStatus;
+  createdById: string;
+  createdBy: PersonRef & { username: string };
+  approvedUserId: string | null;
+  approvedUser: (PersonRef & { username: string; active: boolean; badgeNumber: string | null }) | null;
+  interview: CandidateInterview | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AcademyFile {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  uploadedById: string;
+  createdAt: string;
+}
+
+export interface AcademyContent {
+  id: string;
+  type: AcademyContentType;
+  title: string;
+  body: string | null;
+  videoUrl: string | null;
+  fileId: string | null;
+  file: AcademyFile | null;
+  classId: string | null;
+  class: { id: string; number: number; title: string } | null;
+  publishedById: string;
+  publishedBy: PersonRef & { username: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AcademyClass {
+  id: string;
+  number: number;
+  title: string;
+  description: string | null;
+  scheduledAt: string | null;
+  instructorId: string | null;
+  instructor: (PersonRef & { username: string }) | null;
+  contents: AcademyContent[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClassAttendanceEntry {
+  id: string;
+  present: boolean;
+  markedAt: string;
+  markedBy: PersonRef & { username: string };
+}
+
+export interface ClassAttendanceStudent extends PersonRef {
+  username: string;
+  badgeNumber: string | null;
+  attendance: ClassAttendanceEntry | null;
+}
+
+export interface ClassAttendanceRoster {
+  class: { id: string; number: number; title: string };
+  students: ClassAttendanceStudent[];
+}
+
+export interface AcademyAttendanceSummary {
+  classId: string;
+  number: number;
+  title: string;
+  attendance: { id: string; present: boolean; markedAt: string } | null;
+}
+
+export interface AcademyRecord {
+  attendedClasses: number;
+  totalClasses: number;
+  progressPercent: number;
+  contentCount: number;
+  attendance: Array<{
+    id: string;
+    present: boolean;
+    markedAt: string;
+    class: { id: string; number: number; title: string };
+  }>;
+  exam: {
+    status: AcademyExamStatus;
+    assignmentId: string | null;
+    exam: { id: string; title: string; passScore: number } | null;
+    score: number | null;
+    submittedAt: string | null;
+  };
+}
+
+export interface ExamSummary {
+  id: string;
+  title: string;
+  description: string | null;
+  durationMin: number;
+  passScore: number;
+  isActive: boolean;
+  createdAt: string;
+  createdBy?: PersonRef;
+  questionCount: number;
+  assignmentCount?: number;
+}
+
+export interface AvailableExam {
+  assignmentId: string;
+  openedAt: string;
+  exam: {
+    id: string;
+    title: string;
+    description: string | null;
+    durationMin: number;
+    passScore: number;
+    questionCount: number;
+  };
+}
+
+export interface ExamServedQuestion {
+  q: string;
+  o: string[];
+}
+
+export interface TakeExam {
+  assignmentId: string;
+  exam: {
+    id: string;
+    title: string;
+    description: string | null;
+    durationMin: number;
+    passScore: number;
+  };
+  questions: ExamServedQuestion[];
+}
+
+export interface ExamReviewEntry {
+  q: string;
+  options: string[];
+  correct: string;
+  selected: string | null;
+  isCorrect: boolean;
+}
+
+export interface ExamSubmitResult {
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  passed: boolean;
+  review: ExamReviewEntry[];
+}
+
+export interface ExamResult {
+  id: string;
+  exam: { id: string; title: string; passScore: number };
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  passed: boolean;
+  submittedAt: string;
+  review: ExamReviewEntry[];
+}
+
+export interface ExamAssignmentSummary {
+  id: string;
+  status: ExamAssignmentStatus;
+  openedAt: string;
+  closedAt: string | null;
+  user: PersonRef & { badgeNumber: string | null };
+  openedBy: PersonRef;
+  attempt: { id: string; score: number; passed: boolean; correctCount: number; totalQuestions: number; submittedAt: string } | null;
+}
 
 export interface PersonRef {
   id: string;
@@ -61,6 +311,80 @@ export interface CaseFile {
   uploadedById: string;
   uploadedBy?: PersonRef;
   createdAt: string;
+}
+
+export type BoardScope = "SUBJECT" | "INVESTIGATION" | "GLOBAL";
+export type BoardCardType = "EVIDENCE" | "NOTE" | "ENTITY";
+export type BoardEntityType = "subject" | "investigation" | "property" | "organization" | "document";
+export type BoardStepStatus = "PENDING" | "IN_PROGRESS" | "DONE";
+
+export interface EvidenceBoardFile extends CaseFile {
+  evidenceBoardId?: string | null;
+}
+
+export interface BoardCard {
+  id: string;
+  boardId: string;
+  type: BoardCardType;
+  title: string;
+  text: string | null;
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  zIndex: number;
+  fileId: string | null;
+  file?: EvidenceBoardFile | null;
+  imageUrl: string | null;
+  eventDate: string | null;
+  entityType: BoardEntityType | null;
+  entityId: string | null;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoardConnection {
+  id: string;
+  boardId: string;
+  fromCardId: string;
+  toCardId: string;
+  label: string | null;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoardStep {
+  id: string;
+  boardId: string;
+  order: number;
+  title: string;
+  description: string | null;
+  status: BoardStepStatus;
+  fileId: string | null;
+  file?: EvidenceBoardFile | null;
+  imageUrl: string | null;
+  createdById: string | null;
+  createdBy?: PersonRef | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EvidenceBoard {
+  id: string;
+  scope: BoardScope;
+  title: string;
+  ownerId: string;
+  subjectId: string | null;
+  investigationId: string | null;
+  cards: BoardCard[];
+  steps: BoardStep[];
+  connections: BoardConnection[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface NoteWithAuthor {
