@@ -29,7 +29,11 @@ export enum Permission {
   UPLOAD_FILES = "UPLOAD_FILES",
   MANAGE_WARRANTS = "MANAGE_WARRANTS",
   VIEW_AUDIT_LOG = "VIEW_AUDIT_LOG",
-  SYSTEM_CONFIG = "SYSTEM_CONFIG"
+  SYSTEM_CONFIG = "SYSTEM_CONFIG",
+  MANAGE_HR = "MANAGE_HR",
+  PUBLISH_ACADEMY = "PUBLISH_ACADEMY",
+  MANAGE_ACADEMY = "MANAGE_ACADEMY",
+  VIEW_ACADEMY = "VIEW_ACADEMY"
 }
 
 export type InvestigationStatus = "OPEN" | "ACTIVE" | "SUSPENDED" | "CLOSED_SUCCESSFUL" | "CLOSED_DISMISSED";
@@ -45,6 +49,13 @@ export type MapDrawingType = "POLYGON" | "POLYLINE" | "CIRCLE" | "MARKER";
 export type OrgType = "GANG" | "CARTEL" | "MAFIA" | "BIKER" | "CORPORATE" | "OTHER";
 export type MapElementType = "POINT" | "CIRCLE" | "POLYGON" | "POLYLINE";
 export type SanctionType = "REPRIMAND" | "WARNING" | "SUSPENSION" | "DEMOTION" | "DISMISSAL";
+export type BoardScope = "SUBJECT" | "INVESTIGATION" | "GLOBAL";
+export type BoardCardType = "EVIDENCE" | "NOTE" | "ENTITY";
+export type BoardEntityType = "subject" | "investigation" | "property" | "organization" | "document";
+export type CandidateStatus = "PENDING" | "INTERVIEWED" | "APPROVED" | "REJECTED";
+export type InterviewResult = "PENDING" | "PASSED" | "FAILED";
+export type AcademyContentType = "NOTE" | "VIDEO" | "DOCUMENT" | "REGULATION";
+export type AcademyExamStatus = "PENDING" | "AVAILABLE" | "PASSED" | "FAILED";
 
 export interface User {
   id: string;
@@ -58,6 +69,57 @@ export interface User {
   active: boolean;
   role: RoleType;
   lastLoginAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Interview {
+  id: string;
+  candidateId: string;
+  interviewerId: string;
+  scheduledAt: string | null;
+  conductedAt: string | null;
+  score: number | null;
+  result: InterviewResult;
+  feedback: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Candidate {
+  id: string;
+  fullName: string;
+  contact: string | null;
+  notes: string | null;
+  status: CandidateStatus;
+  createdById: string;
+  approvedUserId: string | null;
+  interview: Interview | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AcademyContent {
+  id: string;
+  type: AcademyContentType;
+  title: string;
+  body: string | null;
+  videoUrl: string | null;
+  fileId: string | null;
+  classId: string | null;
+  publishedById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AcademyClass {
+  id: string;
+  number: number;
+  title: string;
+  description: string | null;
+  scheduledAt: string | null;
+  instructorId: string | null;
+  contents: AcademyContent[];
   createdAt: string;
   updatedAt: string;
 }
@@ -268,7 +330,67 @@ export interface File {
   warrantReportId?: string | null;
   subjectId?: string | null;
   messageId?: string | null;
+  evidenceBoardId?: string | null;
   createdAt: string;
+}
+
+export interface EvidenceBoardFile {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  uploadedById: string;
+  createdAt: string;
+}
+
+export interface BoardCard {
+  id: string;
+  boardId: string;
+  type: BoardCardType;
+  title: string;
+  text: string | null;
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  zIndex: number;
+  fileId: string | null;
+  file?: EvidenceBoardFile | null;
+  imageUrl: string | null;
+  eventDate: string | null;
+  entityType: BoardEntityType | null;
+  entityId: string | null;
+  createdById: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoardConnection {
+  id: string;
+  boardId: string;
+  fromCardId: string;
+  toCardId: string;
+  label: string | null;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EvidenceBoard {
+  id: string;
+  scope: BoardScope;
+  title: string;
+  ownerId: string;
+  subjectId: string | null;
+  investigationId: string | null;
+  cards: BoardCard[];
+  connections: BoardConnection[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuditLog {
